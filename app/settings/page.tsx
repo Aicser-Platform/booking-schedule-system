@@ -1,0 +1,64 @@
+import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
+import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+
+export default async function SettingsPage() {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect("/auth/login")
+  }
+
+  return (
+    <DashboardLayout>
+      <div className="mb-6">
+        <h2 className="text-3xl font-bold tracking-tight">Settings</h2>
+        <p className="text-muted-foreground">Manage your account preferences</p>
+      </div>
+
+      <div className="space-y-6">
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle>Notifications</CardTitle>
+            <CardDescription>Configure how you receive notifications</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="email-notifications">Email Notifications</Label>
+              <Switch id="email-notifications" />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="sms-notifications">SMS Notifications</Label>
+              <Switch id="sms-notifications" />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="booking-reminders">Booking Reminders</Label>
+              <Switch id="booking-reminders" defaultChecked />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle>Account</CardTitle>
+            <CardDescription>Manage your account security</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button variant="outline">Change Password</Button>
+            <div className="pt-4 border-t border-border">
+              <Button variant="destructive">Delete Account</Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </DashboardLayout>
+  )
+}
