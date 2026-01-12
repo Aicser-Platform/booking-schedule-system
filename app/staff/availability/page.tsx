@@ -1,23 +1,31 @@
-import { createClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
-import { AvailabilityManager } from "@/components/staff/availability-manager"
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { AvailabilityManager } from "@/components/staff/availability-manager";
+
+type MeUser = {
+  id: string;
+  email: string;
+  role: "customer" | "staff" | "admin";
+};
+
+async function getMe(): Promise<MeUser | null> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  const cookie = (await headers()).get("cookie") ?? "";
+
+  const res = await fetch(`${apiUrl}/api/auth/me`, {
+    method: "GET",
+    headers: { Cookie: cookie },
+    cache: "no-store",
+  });
+
+  if (!res.ok) return null;
+  return (await res.json()) as MeUser;
+}
 
 export default async function StaffAvailabilityPage() {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect("/auth/login")
-  }
-
-  const { data: profile } = await supabase.from("user_profiles").select("*").eq("id", user.id).single()
-
-  if (profile?.role !== "staff" && profile?.role !== "admin") {
-    redirect("/dashboard")
-  }
+  const me = await getMe();
+  if (!me) redirect("/auth/login");
+  if (me.role !== "staff" && me.role !== "admin") redirect("/dashboard");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -28,8 +36,8 @@ export default async function StaffAvailabilityPage() {
       </header>
 
       <div className="container py-8">
-        <AvailabilityManager staffId={user.id} />
+        <AvailabilityManager staffId={me.id} />
       </div>
     </div>
-  )
+  );
 }

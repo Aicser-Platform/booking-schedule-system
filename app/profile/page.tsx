@@ -1,23 +1,68 @@
-import { createClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
-import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+type MeUser = {
+  id: string;
+  email: string;
+  role: "customer" | "staff" | "admin";
+};
+
+type UserProfile = {
+  id: string;
+  full_name?: string | null;
+  phone?: string | null;
+};
+
+async function getMe(): Promise<MeUser | null> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  const cookie = (await headers()).get("cookie") ?? "";
+
+  const res = await fetch(`${apiUrl}/api/auth/me`, {
+    method: "GET",
+    headers: { Cookie: cookie },
+    cache: "no-store",
+  });
+
+  if (!res.ok) return null;
+  return (await res.json()) as MeUser;
+}
+
+async function getMyProfile(): Promise<UserProfile | null> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  const cookie = (await headers()).get("cookie") ?? "";
+
+  // Backend endpoint you should create:
+  // GET /api/me/profile
+  try {
+    const res = await fetch(`${apiUrl}/api/me/profile`, {
+      method: "GET",
+      headers: { Cookie: cookie },
+      cache: "no-store",
+    });
+
+    if (!res.ok) return null;
+    return (await res.json()) as UserProfile;
+  } catch {
+    return null;
+  }
+}
 
 export default async function ProfilePage() {
-  const supabase = await createClient()
+  const me = await getMe();
+  if (!me) redirect("/auth/login");
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect("/auth/login")
-  }
-
-  const { data: profile } = await supabase.from("user_profiles").select("*").eq("id", user.id).single()
+  const profile = await getMyProfile();
 
   return (
     <DashboardLayout>
@@ -31,22 +76,27 @@ export default async function ProfilePage() {
           <CardTitle>Personal Information</CardTitle>
           <CardDescription>Update your personal details</CardDescription>
         </CardHeader>
+
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" defaultValue={user.email} disabled />
+            <Input id="email" type="email" defaultValue={me.email} disabled />
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="name">Full Name</Label>
             <Input id="name" defaultValue={profile?.full_name || ""} />
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="phone">Phone Number</Label>
             <Input id="phone" type="tel" defaultValue={profile?.phone || ""} />
           </div>
+
+          {/* UI-only until you add a PATCH endpoint + client action */}
           <Button>Save Changes</Button>
         </CardContent>
       </Card>
     </DashboardLayout>
-  )
+  );
 }

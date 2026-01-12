@@ -1,41 +1,80 @@
-import { createClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { format } from "date-fns"
-import { Calendar, User, Clock } from "lucide-react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import Link from "next/link";
+import { format } from "date-fns";
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+
+import { Calendar, User, Clock } from "lucide-react";
+
+type MeUser = {
+  id: string;
+  email: string;
+  role: "customer" | "staff" | "admin";
+};
+
+type Booking = {
+  id: string;
+  start_time_utc: string;
+  status: string;
+  payment_status: string;
+  service: {
+    name: string;
+    price: number;
+    duration_minutes: number;
+  };
+  staff?: {
+    full_name?: string | null;
+  };
+  customer?: {
+    full_name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  };
+};
+
+async function getMe(): Promise<MeUser | null> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  const cookie = (await headers()).get("cookie") ?? "";
+
+  const res = await fetch(`${apiUrl}/api/auth/me`, {
+    headers: { Cookie: cookie },
+    cache: "no-store",
+  });
+
+  if (!res.ok) return null;
+  return res.json();
+}
+
+async function getBookings(): Promise<Booking[]> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  const cookie = (await headers()).get("cookie") ?? "";
+
+  const res = await fetch(`${apiUrl}/api/admin/bookings`, {
+    headers: { Cookie: cookie },
+    cache: "no-store",
+  });
+
+  if (!res.ok) return [];
+  return res.json();
+}
 
 export default async function AdminBookingsPage() {
-  const supabase = await createClient()
+  // ── Auth guard ───────────────────────────────
+  const me = await getMe();
+  if (!me) redirect("/auth/login");
+  if (me.role !== "admin") redirect("/dashboard");
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect("/auth/login")
-  }
-
-  const { data: profile } = await supabase.from("user_profiles").select("role").eq("id", user.id).single()
-
-  if (profile?.role !== "admin") {
-    redirect("/dashboard")
-  }
-
-  const { data: bookings } = await supabase
-    .from("bookings")
-    .select(
-      `
-      *,
-      services(name, price, duration_minutes),
-      user_profiles!bookings_staff_id_fkey(full_name),
-      customers(full_name, email, phone)
-    `,
-    )
-    .order("start_time_utc", { ascending: false })
-    .limit(50)
+  // ── Data ─────────────────────────────────────
+  const bookings = await getBookings();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -50,25 +89,31 @@ export default async function AdminBookingsPage() {
 
       <div className="container py-8">
         <div className="space-y-4">
-          {bookings && bookings.length > 0 ? (
-            bookings.map((booking: any) => (
+          {bookings.length > 0 ? (
+            bookings.map((booking) => (
               <Card key={booking.id}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle className="text-lg">{booking.services?.name}</CardTitle>
+                      <CardTitle className="text-lg">
+                        {booking.service?.name}
+                      </CardTitle>
                       <CardDescription>
-                        {format(new Date(booking.start_time_utc), "MMMM d, yyyy 'at' h:mm a")}
+                        {format(
+                          new Date(booking.start_time_utc),
+                          "MMMM d, yyyy 'at' h:mm a"
+                        )}
                       </CardDescription>
                     </div>
+
                     <div className="flex gap-2">
                       <Badge
                         variant={
                           booking.status === "confirmed"
                             ? "default"
                             : booking.status === "cancelled"
-                              ? "destructive"
-                              : "secondary"
+                            ? "destructive"
+                            : "secondary"
                         }
                       >
                         {booking.status}
@@ -77,29 +122,45 @@ export default async function AdminBookingsPage() {
                     </div>
                   </div>
                 </CardHeader>
+
                 <CardContent>
                   <div className="grid gap-4 md:grid-cols-3">
+                    {/* Customer */}
                     <div className="flex items-start gap-2">
                       <User className="mt-0.5 h-4 w-4 text-muted-foreground" />
                       <div className="text-sm">
                         <p className="font-medium">Customer</p>
-                        <p className="text-muted-foreground">{booking.customers?.full_name}</p>
-                        <p className="text-muted-foreground">{booking.customers?.email}</p>
+                        <p className="text-muted-foreground">
+                          {booking.customer?.full_name}
+                        </p>
+                        <p className="text-muted-foreground">
+                          {booking.customer?.email}
+                        </p>
                       </div>
                     </div>
+
+                    {/* Staff */}
                     <div className="flex items-start gap-2">
                       <User className="mt-0.5 h-4 w-4 text-muted-foreground" />
                       <div className="text-sm">
                         <p className="font-medium">Staff</p>
-                        <p className="text-muted-foreground">{booking.user_profiles?.full_name}</p>
+                        <p className="text-muted-foreground">
+                          {booking.staff?.full_name || "—"}
+                        </p>
                       </div>
                     </div>
+
+                    {/* Details */}
                     <div className="flex items-start gap-2">
                       <Clock className="mt-0.5 h-4 w-4 text-muted-foreground" />
                       <div className="text-sm">
                         <p className="font-medium">Details</p>
-                        <p className="text-muted-foreground">{booking.services?.duration_minutes} min</p>
-                        <p className="font-semibold">${booking.services?.price}</p>
+                        <p className="text-muted-foreground">
+                          {booking.service?.duration_minutes} min
+                        </p>
+                        <p className="font-semibold">
+                          ${booking.service?.price}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -117,5 +178,5 @@ export default async function AdminBookingsPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,42 +1,61 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
+import { useState } from "react";
+import Link from "next/link";
+import { CheckCircle2 } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import Link from "next/link"
-import { useState } from "react"
-import { CheckCircle2 } from "lucide-react"
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function ResetPasswordPage() {
-  const [email, setEmail] = useState("")
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [emailSent, setEmailSent] = useState(false)
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const supabase = createClient()
-    setIsLoading(true)
-    setError(null)
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/update-password`,
-      })
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
-      if (error) throw error
+      const res = await fetch(`${apiUrl}/api/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          // where the user will land to set a new password
+          reset_url: `${window.location.origin}/auth/update-password`,
+        }),
+      });
 
-      setEmailSent(true)
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred")
+      if (!res.ok) {
+        let message = "Failed to send reset email";
+        try {
+          const data = await res.json();
+          message = data?.detail || data?.message || message;
+        } catch {}
+        throw new Error(message);
+      }
+
+      setEmailSent(true);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   if (emailSent) {
     return (
@@ -52,7 +71,8 @@ export default function ResetPasswordPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-center text-sm text-muted-foreground">
-                We've sent a password reset link to <strong>{email}</strong>. Please check your inbox and follow the
+                We&apos;ve sent a password reset link to{" "}
+                <strong>{email}</strong>. Please check your inbox and follow the
                 instructions to reset your password.
               </p>
               <div className="pt-4">
@@ -64,7 +84,7 @@ export default function ResetPasswordPage() {
           </Card>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -72,14 +92,20 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-md">
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2 text-center">
-            <h1 className="text-3xl font-bold tracking-tight">Reset Password</h1>
-            <p className="text-muted-foreground">Enter your email to receive a reset link</p>
+            <h1 className="text-3xl font-bold tracking-tight">
+              Reset Password
+            </h1>
+            <p className="text-muted-foreground">
+              Enter your email to receive a reset link
+            </p>
           </div>
 
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl">Password Reset</CardTitle>
-              <CardDescription>We'll send you instructions to reset your password</CardDescription>
+              <CardDescription>
+                We&apos;ll send you instructions to reset your password
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleResetPassword}>
@@ -97,7 +123,11 @@ export default function ResetPasswordPage() {
                     />
                   </div>
 
-                  {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+                  {error && (
+                    <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                      {error}
+                    </div>
+                  )}
 
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Sending..." : "Send Reset Link"}
@@ -106,7 +136,10 @@ export default function ResetPasswordPage() {
 
                 <div className="mt-6 text-center text-sm">
                   Remember your password?{" "}
-                  <Link href="/auth/login" className="font-medium text-primary underline-offset-4 hover:underline">
+                  <Link
+                    href="/auth/login"
+                    className="font-medium text-primary underline-offset-4 hover:underline"
+                  >
                     Sign in
                   </Link>
                 </div>
@@ -116,5 +149,5 @@ export default function ResetPasswordPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

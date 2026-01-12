@@ -1,35 +1,81 @@
-import { createClient } from "@/lib/supabase/server"
-import { notFound, redirect } from "next/navigation"
-import { PaymentForm } from "@/components/payment/payment-form"
+import { notFound, redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { PaymentForm } from "@/components/payment/payment-form";
 
-export default async function PaymentPage({ params }: { params: Promise<{ bookingId: string }> }) {
-  const { bookingId } = await params
-  const supabase = await createClient()
+type MeUser = {
+  id: string;
+  email: string;
+  role: "customer" | "staff" | "admin";
+};
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+type PaymentBookingRow = {
+  id: string;
+  status: string;
+  payment_status?: string | null;
+  start_time_utc: string;
 
-  if (!user) {
-    redirect("/auth/login")
+  services: {
+    name: string;
+    price: number;
+    deposit_amount: number;
+  } | null;
+
+  staff: {
+    full_name?: string | null;
+  } | null;
+
+  // include any other fields your PaymentForm expects (e.g. customer_id, total, etc.)
+};
+
+async function getMe(): Promise<MeUser | null> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  const cookie = (await headers()).get("cookie") ?? "";
+
+  const res = await fetch(`${apiUrl}/api/auth/me`, {
+    method: "GET",
+    headers: { Cookie: cookie },
+    cache: "no-store",
+  });
+
+  if (!res.ok) return null;
+  return (await res.json()) as MeUser;
+}
+
+async function getBookingForPayment(
+  bookingId: string
+): Promise<PaymentBookingRow | null> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  const cookie = (await headers()).get("cookie") ?? "";
+
+  // Backend endpoint you should create:
+  // GET /api/bookings/:bookingId/payment
+  // Return booking + service (name, price, deposit_amount) + staff (full_name)
+  try {
+    const res = await fetch(`${apiUrl}/api/bookings/${bookingId}/payment`, {
+      method: "GET",
+      headers: { Cookie: cookie },
+      cache: "no-store",
+    });
+
+    if (!res.ok) return null;
+    return (await res.json()) as PaymentBookingRow;
+  } catch {
+    return null;
   }
+}
 
-  // Get booking details
-  const { data: booking } = await supabase
-    .from("bookings")
-    .select(
-      `
-      *,
-      services(name, price, deposit_amount),
-      user_profiles!bookings_staff_id_fkey(full_name)
-    `,
-    )
-    .eq("id", bookingId)
-    .single()
+export default async function PaymentPage({
+  params,
+}: {
+  params: { bookingId: string };
+}) {
+  const { bookingId } = params;
 
-  if (!booking) {
-    notFound()
-  }
+  const me = await getMe();
+  if (!me) redirect("/auth/login");
+
+  const booking = await getBookingForPayment(bookingId);
+  if (!booking || !booking.services) notFound();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -39,5 +85,5 @@ export default async function PaymentPage({ params }: { params: Promise<{ bookin
         </div>
       </div>
     </div>
-  )
+  );
 }
