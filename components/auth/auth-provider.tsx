@@ -19,6 +19,7 @@ interface UserProfile {
   role: "customer" | "staff" | "admin"
   phone: string | null
   avatar_url: string | null
+  email: string | null
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -43,33 +44,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = await response.json()
         setProfile(data)
       } else {
-        // If profile doesn't exist in backend, use metadata from auth
         const {
-          data: { user },
+          data: { user: authUser },
         } = await supabase.auth.getUser()
-        if (user?.user_metadata) {
+
+        if (authUser) {
           setProfile({
             id: userId,
-            full_name: user.user_metadata.full_name || null,
-            role: user.user_metadata.role || "customer",
-            phone: user.user_metadata.phone || null,
-            avatar_url: null,
+            full_name: authUser.user_metadata?.full_name || null,
+            role: authUser.user_metadata?.role || "customer",
+            phone: authUser.user_metadata?.phone || null,
+            avatar_url: authUser.user_metadata?.avatar_url || null,
+            email: authUser.email || null,
           })
         }
       }
     } catch (error) {
-      console.error("Failed to fetch profile:", error)
-      // Fallback to user metadata
+      console.error("[v0] Failed to fetch profile:", error)
       const {
-        data: { user },
+        data: { user: authUser },
       } = await supabase.auth.getUser()
-      if (user?.user_metadata) {
+
+      if (authUser) {
         setProfile({
           id: userId,
-          full_name: user.user_metadata.full_name || null,
-          role: user.user_metadata.role || "customer",
-          phone: user.user_metadata.phone || null,
-          avatar_url: null,
+          full_name: authUser.user_metadata?.full_name || null,
+          role: authUser.user_metadata?.role || "customer",
+          phone: authUser.user_metadata?.phone || null,
+          avatar_url: authUser.user_metadata?.avatar_url || null,
+          email: authUser.email || null,
         })
       }
     }

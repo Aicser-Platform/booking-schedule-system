@@ -20,24 +20,21 @@ export default async function CustomerDashboard() {
     redirect("/auth/login")
   }
 
-  // Get customer record
-  const { data: customer } = await supabase.from("customers").select("*").eq("user_id", user.id).single()
+  let bookings = []
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+    const response = await fetch(`${apiUrl}/api/users/${user.id}/bookings`, {
+      headers: {
+        Authorization: `Bearer ${user.id}`,
+      },
+    })
 
-  // Get user bookings
-  const { data: bookings } = await supabase
-    .from("bookings")
-    .select(
-      `
-      *,
-      services(name, price, duration_minutes),
-      user_profiles!bookings_staff_id_fkey(full_name)
-    `,
-    )
-    .eq("customer_id", customer?.id)
-    .order("start_time_utc", { ascending: false })
-    .limit(10)
-
-  const { data: profile } = await supabase.from("user_profiles").select("*").eq("id", user.id).single()
+    if (response.ok) {
+      bookings = await response.json()
+    }
+  } catch (error) {
+    console.error("[v0] Failed to fetch bookings:", error)
+  }
 
   return (
     <DashboardLayout>
@@ -58,7 +55,7 @@ export default async function CustomerDashboard() {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div>
-                    <CardTitle>{booking.services?.name}</CardTitle>
+                    <CardTitle>{booking.service_name}</CardTitle>
                     <CardDescription>
                       {format(new Date(booking.start_time_utc), "MMMM d, yyyy 'at' h:mm a")}
                     </CardDescription>
@@ -80,15 +77,15 @@ export default async function CustomerDashboard() {
                 <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <User className="size-4" />
-                    <span>{booking.user_profiles?.full_name || "Staff Member"}</span>
+                    <span>{booking.staff_name || "Staff Member"}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Clock className="size-4" />
-                    <span>{booking.services?.duration_minutes} minutes</span>
+                    <span>{booking.duration_minutes} minutes</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <DollarSign className="size-4" />
-                    <span className="font-semibold">${booking.services?.price}</span>
+                    <span className="font-semibold">${booking.price}</span>
                     <Badge variant="outline">{booking.payment_status}</Badge>
                   </div>
                 </div>

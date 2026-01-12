@@ -59,22 +59,28 @@ export default function SignupPage() {
 
       if (data.user) {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
-        const response = await fetch(`${apiUrl}/api/users/profile`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            user_id: data.user.id,
-            email: email,
-            full_name: fullName,
-            role: role,
-            phone: phone,
-          }),
-        })
+        try {
+          const response = await fetch(`${apiUrl}/api/users/profile`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              user_id: data.user.id,
+              email: email,
+              full_name: fullName,
+              role: role,
+              phone: phone,
+            }),
+          })
 
-        if (!response.ok) {
-          console.error("Failed to create user profile in database")
+          if (!response.ok) {
+            console.error("[v0] Failed to create user profile:", response.statusText)
+            // Don't throw - user account is created in Supabase, just continue
+          }
+        } catch (apiError) {
+          console.error("[v0] Backend API error:", apiError)
+          // Continue anyway - Supabase auth succeeded
         }
       }
 
