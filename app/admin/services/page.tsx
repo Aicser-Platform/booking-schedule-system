@@ -17,7 +17,7 @@ import { Plus, Edit, Trash2 } from "lucide-react";
 type MeUser = {
   id: string;
   email: string;
-  role: "customer" | "staff" | "admin";
+  role: "customer" | "staff" | "admin" | "superadmin";
 };
 
 type ServiceRow = {
@@ -68,7 +68,7 @@ async function getServices(): Promise<ServiceRow[]> {
 export default async function AdminServicesPage() {
   const me = await getMe();
   if (!me) redirect("/auth/login");
-  if (me.role !== "admin") redirect("/dashboard");
+  if (me.role !== "admin" && me.role !== "superadmin") redirect("/dashboard");
 
   const services = await getServices();
 

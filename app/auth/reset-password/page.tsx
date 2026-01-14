@@ -21,6 +21,7 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [resetToken, setResetToken] = useState<string | null>(null);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,25 +31,23 @@ export default function ResetPasswordPage() {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-      const res = await fetch(`${apiUrl}/api/auth/forgot-password`, {
+      const res = await fetch(`${apiUrl}/api/auth/password-reset/request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
-          // where the user will land to set a new password
-          reset_url: `${window.location.origin}/auth/update-password`,
         }),
       });
 
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        let message = "Failed to send reset email";
-        try {
-          const data = await res.json();
-          message = data?.detail || data?.message || message;
-        } catch {}
+        const message =
+          data?.detail || data?.message || "Failed to send reset email";
         throw new Error(message);
       }
 
+      setResetToken(data?.reset_token ?? null);
       setEmailSent(true);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -75,6 +74,22 @@ export default function ResetPasswordPage() {
                 <strong>{email}</strong>. Please check your inbox and follow the
                 instructions to reset your password.
               </p>
+              {resetToken && (
+                <div className="rounded-md border bg-muted/40 p-3 text-sm">
+                  <div className="mb-1 font-medium">Dev reset token</div>
+                  <div className="break-all">{resetToken}</div>
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    Open{" "}
+                    <Link
+                      href={`/auth/update-password?token=${resetToken}`}
+                      className="underline underline-offset-4"
+                    >
+                      update password
+                    </Link>
+                    .
+                  </div>
+                </div>
+              )}
               <div className="pt-4">
                 <Button asChild className="w-full">
                   <Link href="/auth/login">Back to Login</Link>

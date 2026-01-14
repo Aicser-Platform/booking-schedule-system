@@ -10,7 +10,7 @@ import { Users, Phone } from "lucide-react";
 type MeUser = {
   id: string;
   email: string;
-  role: "customer" | "staff" | "admin";
+  role: "customer" | "staff" | "admin" | "superadmin";
 };
 
 type StaffRow = {
@@ -60,7 +60,7 @@ async function getStaff(): Promise<StaffRow[]> {
 export default async function AdminStaffPage() {
   const me = await getMe();
   if (!me) redirect("/auth/login");
-  if (me.role !== "admin") redirect("/dashboard");
+  if (me.role !== "admin" && me.role !== "superadmin") redirect("/dashboard");
 
   const staffMembers = await getStaff();
 

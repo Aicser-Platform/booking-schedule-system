@@ -7,7 +7,7 @@ import { Calendar } from "lucide-react";
 type MeUser = {
   id: string;
   email: string;
-  role: "customer" | "staff" | "admin";
+  role: "customer" | "staff" | "admin" | "superadmin";
 };
 
 async function getMe(): Promise<MeUser | null> {
@@ -27,7 +27,8 @@ async function getMe(): Promise<MeUser | null> {
 export default async function StaffSchedulePage() {
   const me = await getMe();
   if (!me) redirect("/auth/login");
-  if (me.role !== "staff" && me.role !== "admin") redirect("/dashboard");
+  if (me.role !== "staff" && me.role !== "admin" && me.role !== "superadmin")
+    redirect("/dashboard");
 
   return (
     <DashboardLayout>

@@ -31,6 +31,7 @@ export function BookingForm({ service, staff, userId }: BookingFormProps) {
       const dateStr = format(date, "yyyy-MM-dd")
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/availability/slots?service_id=${service.id}&date=${dateStr}&staff_id=${staffId}`,
+        { credentials: "include" },
       )
       const data = await response.json()
       setAvailableSlots(data)
@@ -67,6 +68,7 @@ export function BookingForm({ service, staff, userId }: BookingFormProps) {
       const customerResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/customers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           user_id: userId,
           full_name: "Customer Name", // Should come from user profile
@@ -81,6 +83,7 @@ export function BookingForm({ service, staff, userId }: BookingFormProps) {
       const bookingResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           service_id: service.id,
           staff_id: selectedStaff,

@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/dashboard/empty-state";
 type MeUser = {
   id: string;
   email: string;
-  role: "customer" | "staff" | "admin";
+  role: "customer" | "staff" | "admin" | "superadmin";
 };
 
 type ReviewRow = {
@@ -60,7 +60,7 @@ async function getReviews(): Promise<ReviewRow[]> {
 export default async function AdminReviewsPage() {
   const me = await getMe();
   if (!me) redirect("/auth/login");
-  if (me.role !== "admin") redirect("/dashboard");
+  if (me.role !== "admin" && me.role !== "superadmin") redirect("/dashboard");
 
   const reviews = await getReviews();
 

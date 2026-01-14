@@ -4,6 +4,7 @@ from typing import List
 from datetime import datetime, date
 from decimal import Decimal
 from app.core.database import get_db
+from app.core.auth import require_roles
 from app.models.schemas import BookingStats, ServiceStats, StaffStats, DailyStats
 
 router = APIRouter()
@@ -12,6 +13,7 @@ router = APIRouter()
 async def get_booking_stats(
     start_date: datetime = None,
     end_date: datetime = None,
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db)
 ):
     """Get overall booking statistics"""
@@ -54,6 +56,7 @@ async def get_booking_stats(
 async def get_service_stats(
     start_date: datetime = None,
     end_date: datetime = None,
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db)
 ):
     """Get statistics by service"""
@@ -98,22 +101,23 @@ async def get_service_stats(
 async def get_staff_stats(
     start_date: datetime = None,
     end_date: datetime = None,
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db)
 ):
     """Get statistics by staff member"""
     query = """
         SELECT 
-            up.id as staff_id,
-            up.full_name as staff_name,
+            u.id as staff_id,
+            u.full_name as staff_name,
             COUNT(b.id) as total_bookings,
             COUNT(CASE WHEN b.status = 'completed' THEN 1 END) as completed_bookings,
             COALESCE(SUM(CASE WHEN b.payment_status = 'paid' THEN s.price ELSE 0 END), 0) as total_revenue,
             AVG(r.rating) as average_rating
-        FROM user_profiles up
-        LEFT JOIN bookings b ON up.id = b.staff_id
+        FROM users u
+        LEFT JOIN bookings b ON u.id = b.staff_id
         LEFT JOIN services s ON b.service_id = s.id
         LEFT JOIN reviews r ON b.id = r.booking_id
-        WHERE up.role = 'staff'
+        WHERE u.role = 'staff'
     """
     params = {}
     
@@ -124,7 +128,7 @@ async def get_staff_stats(
         query += " AND b.created_at <= :end_date"
         params["end_date"] = end_date
     
-    query += " GROUP BY up.id, up.full_name ORDER BY total_revenue DESC"
+    query += " GROUP BY u.id, u.full_name ORDER BY total_revenue DESC"
     
     result = db.execute(query, params)
     stats = result.fetchall()
@@ -145,6 +149,7 @@ async def get_staff_stats(
 async def get_daily_stats(
     start_date: date = None,
     end_date: date = None,
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db)
 ):
     """Get daily booking statistics"""
@@ -179,3 +184,75 @@ async def get_daily_stats(
         }
         for row in stats
     ]
+
+@router.get("/admin-stats")
+async def get_admin_stats(
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
+    db: Session = Depends(get_db),
+):
+    """Admin overview stats"""
+    booking_result = db.execute("SELECT COUNT(*) FROM bookings").fetchone()
+    revenue_result = db.execute(
+        """
+        SELECT COALESCE(SUM(CASE WHEN b.payment_status = 'paid' THEN s.price ELSE 0 END), 0)
+        FROM bookings b
+        LEFT JOIN services s ON b.service_id = s.id
+        """
+    ).fetchone()
+    user_result = db.execute(
+        "SELECT COUNT(*) FROM users WHERE is_active = TRUE"
+    ).fetchone()
+
+    return {
+        "totalBookings": int(booking_result[0] or 0),
+        "totalRevenue": float(revenue_result[0] or 0),
+        "totalUsers": int(user_result[0] or 0),
+        "growthRate": 0,
+    }
+
+@router.get("/admin-dashboard")
+async def get_admin_dashboard(
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
+    db: Session = Depends(get_db),
+):
+    """Admin dashboard metrics"""
+    totals = db.execute(
+        "SELECT COUNT(*) FROM bookings"
+    ).fetchone()
+    upcoming = db.execute(
+        "SELECT COUNT(*) FROM bookings WHERE start_time_utc >= NOW()"
+    ).fetchone()
+    revenue = db.execute(
+        """
+        SELECT COALESCE(SUM(CASE WHEN b.payment_status = 'paid' THEN s.price ELSE 0 END), 0)
+        FROM bookings b
+        LEFT JOIN services s ON b.service_id = s.id
+        """
+    ).fetchone()
+    avg_rating = db.execute(
+        "SELECT COALESCE(AVG(r.rating), 0) FROM reviews r"
+    ).fetchone()
+    cancellation_rate = db.execute(
+        """
+        SELECT COALESCE(
+            CAST(COUNT(CASE WHEN status = 'cancelled' THEN 1 END) AS FLOAT)
+            / NULLIF(COUNT(*), 0) * 100,
+            0
+        )
+        FROM bookings
+        """
+    ).fetchone()
+    total_reviews = db.execute("SELECT COUNT(*) FROM reviews").fetchone()
+    active_users = db.execute(
+        "SELECT COUNT(*) FROM users WHERE is_active = TRUE"
+    ).fetchone()
+
+    return {
+        "totalBookings": int(totals[0] or 0),
+        "upcomingBookings": int(upcoming[0] or 0),
+        "totalRevenue": float(revenue[0] or 0),
+        "avgRating": float(avg_rating[0] or 0),
+        "cancellationRate": float(cancellation_rate[0] or 0),
+        "totalReviews": int(total_reviews[0] or 0),
+        "activeUsers": int(active_users[0] or 0),
+    }

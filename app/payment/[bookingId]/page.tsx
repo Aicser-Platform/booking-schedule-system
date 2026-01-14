@@ -5,7 +5,7 @@ import { PaymentForm } from "@/components/payment/payment-form";
 type MeUser = {
   id: string;
   email: string;
-  role: "customer" | "staff" | "admin";
+  role: "customer" | "staff" | "admin" | "superadmin";
 };
 
 type PaymentBookingRow = {

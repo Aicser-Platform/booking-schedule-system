@@ -20,7 +20,7 @@ import { EmptyState } from "@/components/dashboard/empty-state";
 type MeUser = {
   id: string;
   email: string;
-  role: "customer" | "staff" | "admin";
+  role: "customer" | "staff" | "admin" | "superadmin";
 };
 
 type BookingRow = {
@@ -107,7 +107,8 @@ async function getStaffDashboard(): Promise<StaffDashboardData> {
 export default async function StaffDashboard() {
   const me = await getMe();
   if (!me) redirect("/auth/login");
-  if (me.role !== "staff" && me.role !== "admin") redirect("/dashboard");
+  if (me.role !== "staff" && me.role !== "admin" && me.role !== "superadmin")
+    redirect("/dashboard");
 
   // If you *don't* have /api/staff/dashboard yet, you can replace this with
   // two fetches (today/upcoming) + one stats fetch. But one endpoint is cleaner.

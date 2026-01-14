@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime, date, time, timedelta
 from app.core.database import get_db
+from app.core.auth import require_roles, is_admin
 from app.models.schemas import (
     AvailabilityRuleCreate, AvailabilityRuleResponse,
     AvailabilityExceptionCreate, AvailabilityExceptionResponse,
@@ -12,12 +13,20 @@ import uuid
 
 router = APIRouter()
 
+def _ensure_staff_or_admin(current_user: dict, staff_id: str) -> None:
+    if is_admin(current_user):
+        return
+    if current_user.get("id") != staff_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
 @router.post("/rules", response_model=AvailabilityRuleResponse)
 async def create_availability_rule(
     rule: AvailabilityRuleCreate,
+    current_user: dict = Depends(require_roles("staff", "admin", "superadmin")),
     db: Session = Depends(get_db)
 ):
     """Create availability rule for staff"""
+    _ensure_staff_or_admin(current_user, rule.staff_id)
     rule_id = str(uuid.uuid4())
     
     db.execute(
@@ -45,8 +54,13 @@ async def create_availability_rule(
     return dict(result.fetchone()._mapping)
 
 @router.get("/rules/{staff_id}", response_model=List[AvailabilityRuleResponse])
-async def get_staff_availability_rules(staff_id: str, db: Session = Depends(get_db)):
+async def get_staff_availability_rules(
+    staff_id: str,
+    current_user: dict = Depends(require_roles("staff", "admin", "superadmin")),
+    db: Session = Depends(get_db),
+):
     """Get all availability rules for a staff member"""
+    _ensure_staff_or_admin(current_user, staff_id)
     result = db.execute(
         "SELECT * FROM availability_rules WHERE staff_id = :staff_id ORDER BY day_of_week, start_time",
         {"staff_id": staff_id}
@@ -56,8 +70,22 @@ async def get_staff_availability_rules(staff_id: str, db: Session = Depends(get_
     return [dict(row._mapping) for row in rules]
 
 @router.delete("/rules/{rule_id}")
-async def delete_availability_rule(rule_id: str, db: Session = Depends(get_db)):
+async def delete_availability_rule(
+    rule_id: str,
+    current_user: dict = Depends(require_roles("staff", "admin", "superadmin")),
+    db: Session = Depends(get_db),
+):
     """Delete an availability rule"""
+    rule_owner = db.execute(
+        "SELECT staff_id FROM availability_rules WHERE id = :id",
+        {"id": rule_id},
+    ).fetchone()
+
+    if not rule_owner:
+        raise HTTPException(status_code=404, detail="Rule not found")
+
+    _ensure_staff_or_admin(current_user, rule_owner[0])
+
     result = db.execute(
         "DELETE FROM availability_rules WHERE id = :id",
         {"id": rule_id}
@@ -72,9 +100,11 @@ async def delete_availability_rule(rule_id: str, db: Session = Depends(get_db)):
 @router.post("/exceptions", response_model=AvailabilityExceptionResponse)
 async def create_availability_exception(
     exception: AvailabilityExceptionCreate,
+    current_user: dict = Depends(require_roles("staff", "admin", "superadmin")),
     db: Session = Depends(get_db)
 ):
     """Create availability exception (holiday, blocked time, etc.)"""
+    _ensure_staff_or_admin(current_user, exception.staff_id)
     exception_id = str(uuid.uuid4())
     
     db.execute(
@@ -107,9 +137,11 @@ async def get_staff_availability_exceptions(
     staff_id: str,
     start_date: date = None,
     end_date: date = None,
+    current_user: dict = Depends(require_roles("staff", "admin", "superadmin")),
     db: Session = Depends(get_db)
 ):
     """Get availability exceptions for a staff member"""
+    _ensure_staff_or_admin(current_user, staff_id)
     query = "SELECT * FROM availability_exceptions WHERE staff_id = :staff_id"
     params = {"staff_id": staff_id}
     

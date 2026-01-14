@@ -5,7 +5,7 @@ import { AvailabilityManager } from "@/components/staff/availability-manager";
 type MeUser = {
   id: string;
   email: string;
-  role: "customer" | "staff" | "admin";
+  role: "customer" | "staff" | "admin" | "superadmin";
 };
 
 async function getMe(): Promise<MeUser | null> {
@@ -25,7 +25,8 @@ async function getMe(): Promise<MeUser | null> {
 export default async function StaffAvailabilityPage() {
   const me = await getMe();
   if (!me) redirect("/auth/login");
-  if (me.role !== "staff" && me.role !== "admin") redirect("/dashboard");
+  if (me.role !== "staff" && me.role !== "admin" && me.role !== "superadmin")
+    redirect("/dashboard");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">

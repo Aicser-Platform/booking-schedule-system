@@ -15,7 +15,7 @@ import { Download, FileText } from "lucide-react";
 type MeUser = {
   id: string;
   email: string;
-  role: "customer" | "staff" | "admin";
+  role: "customer" | "staff" | "admin" | "superadmin";
 };
 
 async function getMe(): Promise<MeUser | null> {
@@ -35,7 +35,7 @@ async function getMe(): Promise<MeUser | null> {
 export default async function AdminReportsPage() {
   const me = await getMe();
   if (!me) redirect("/auth/login");
-  if (me.role !== "admin") redirect("/dashboard");
+  if (me.role !== "admin" && me.role !== "superadmin") redirect("/dashboard");
 
   // These endpoints are what you should implement in FastAPI later:
   // GET /api/admin/reports/bookings.csv

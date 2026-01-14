@@ -18,7 +18,7 @@ import { AnalyticsCharts } from "@/components/admin/analytics-charts";
 type MeUser = {
   id: string;
   email: string;
-  role: "customer" | "staff" | "admin";
+  role: "customer" | "staff" | "admin" | "superadmin";
   full_name?: string | null;
 };
 
@@ -99,7 +99,7 @@ export default async function AdminDashboard() {
   // ── Auth / Role guard ─────────────────────────
   const me = await getMe();
   if (!me) redirect("/auth/login");
-  if (me.role !== "admin") redirect("/dashboard");
+  if (me.role !== "admin" && me.role !== "superadmin") redirect("/dashboard");
 
   // ── Stats ─────────────────────────────────────
   const stats = await getAdminDashboardStats();

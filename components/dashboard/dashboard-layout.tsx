@@ -55,10 +55,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
 
-  const role =
+  const rawRole =
     profile?.role ||
-    ((user as any)?.role as "customer" | "staff" | "admin") ||
+    ((user as any)?.role as "customer" | "staff" | "admin" | "superadmin") ||
     "customer";
+  const role = rawRole === "superadmin" ? "admin" : rawRole;
 
   const handleLogout = async () => {
     try {

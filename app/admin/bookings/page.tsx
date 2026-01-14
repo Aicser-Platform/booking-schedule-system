@@ -18,7 +18,7 @@ import { Calendar, User, Clock } from "lucide-react";
 type MeUser = {
   id: string;
   email: string;
-  role: "customer" | "staff" | "admin";
+  role: "customer" | "staff" | "admin" | "superadmin";
 };
 
 type Booking = {
@@ -71,7 +71,7 @@ export default async function AdminBookingsPage() {
   // ── Auth guard ───────────────────────────────
   const me = await getMe();
   if (!me) redirect("/auth/login");
-  if (me.role !== "admin") redirect("/dashboard");
+  if (me.role !== "admin" && me.role !== "superadmin") redirect("/dashboard");
 
   // ── Data ─────────────────────────────────────
   const bookings = await getBookings();

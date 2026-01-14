@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from app.core.database import get_db
+from app.core.auth import require_roles
 from app.models.schemas import ServiceCreate, ServiceUpdate, ServiceResponse
 import uuid
-from datetime import datetime
 
 router = APIRouter()
 
@@ -42,7 +42,7 @@ async def get_service(service_id: str, db: Session = Depends(get_db)):
 @router.post("/", response_model=ServiceResponse, status_code=status.HTTP_201_CREATED)
 async def create_service(
     service: ServiceCreate,
-    admin_id: str,  # This should come from authenticated user
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db)
 ):
     """Create a new service (Admin only)"""
@@ -57,7 +57,7 @@ async def create_service(
         """,
         {
             "id": service_id,
-            "admin_id": admin_id,
+            "admin_id": current_user.get("id"),
             "name": service.name,
             "description": service.description,
             "duration_minutes": service.duration_minutes,
@@ -76,6 +76,7 @@ async def create_service(
 async def update_service(
     service_id: str,
     service: ServiceUpdate,
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db)
 ):
     """Update a service (Admin only)"""
@@ -118,7 +119,11 @@ async def update_service(
     return await get_service(service_id, db)
 
 @router.delete("/{service_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_service(service_id: str, db: Session = Depends(get_db)):
+async def delete_service(
+    service_id: str,
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
+    db: Session = Depends(get_db),
+):
     """Delete a service (Admin only)"""
     result = db.execute(
         "DELETE FROM services WHERE id = :id",
@@ -130,3 +135,22 @@ async def delete_service(service_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Service not found")
     
     return None
+
+@router.get("/{service_id}/staff")
+async def get_service_staff(service_id: str, db: Session = Depends(get_db)):
+    """Get staff assigned to a service"""
+    result = db.execute(
+        """
+        SELECT u.id, u.full_name
+        FROM staff_services ss
+        JOIN users u ON u.id = ss.staff_id
+        WHERE ss.service_id = :service_id AND u.is_active = TRUE
+        ORDER BY u.full_name
+        """,
+        {"service_id": service_id},
+    )
+
+    return [
+        {"id": row[0], "name": row[1] or "Staff Member"}
+        for row in result.fetchall()
+    ]

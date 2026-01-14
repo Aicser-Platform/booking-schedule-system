@@ -25,6 +25,7 @@ export function PaymentForm({ booking }: PaymentFormProps) {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payments/create-intent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           booking_id: booking.id,
           amount: amount,
@@ -42,6 +43,7 @@ export function PaymentForm({ booking }: PaymentFormProps) {
       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payments/${payment_id}/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ transaction_status: "success" }),
       })
 
@@ -70,7 +72,9 @@ export function PaymentForm({ booking }: PaymentFormProps) {
             <User className="mt-0.5 h-5 w-5 text-muted-foreground" />
             <div>
               <p className="font-medium">{booking.services.name}</p>
-              <p className="text-sm text-muted-foreground">with {booking.user_profiles.full_name}</p>
+              <p className="text-sm text-muted-foreground">
+                with {booking.staff?.full_name || "Staff Member"}
+              </p>
             </div>
           </div>
 

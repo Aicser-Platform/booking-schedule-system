@@ -20,36 +20,45 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.add_column("users", sa.Column("full_name", sa.String(length=150), nullable=True))
-    op.add_column("users", sa.Column("phone", sa.String(length=50), nullable=True))
-    op.add_column("users", sa.Column("avatar_url", sa.String(length=255), nullable=True))
-    op.add_column("users", sa.Column("password_hash", sa.String(length=255), nullable=True))
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    user_columns = {col["name"] for col in inspector.get_columns("users")}
+    table_names = set(inspector.get_table_names())
 
-    op.create_table(
-        "sessions",
-        sa.Column("id", sa.UUID(), primary_key=True, nullable=False),
-        sa.Column("user_id", sa.UUID(), nullable=False),
-        sa.Column("token", sa.String(length=64), nullable=False, unique=True),
-        sa.Column("expires_at", sa.DateTime(), nullable=False),
-        sa.Column(
-            "created_at",
-            sa.DateTime(),
-            nullable=False,
-            server_default=sa.text("now()"),
-        ),
-        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
-    )
-    op.create_index("ix_sessions_token", "sessions", ["token"], unique=True)
-    op.create_index("ix_sessions_user_id", "sessions", ["user_id"], unique=False)
+    if "full_name" not in user_columns:
+        op.add_column("users", sa.Column("full_name", sa.String(length=150), nullable=True))
+    if "phone" not in user_columns:
+        op.add_column("users", sa.Column("phone", sa.String(length=50), nullable=True))
+    if "avatar_url" not in user_columns:
+        op.add_column("users", sa.Column("avatar_url", sa.String(length=255), nullable=True))
+    if "password_hash" not in user_columns:
+        op.add_column("users", sa.Column("password_hash", sa.String(length=255), nullable=True))
+
+    if "sessions" not in table_names:
+        op.create_table(
+            "sessions",
+            sa.Column("id", sa.UUID(), primary_key=True, nullable=False),
+            sa.Column("user_id", sa.UUID(), nullable=False),
+            sa.Column("token", sa.String(length=64), nullable=False, unique=True),
+            sa.Column("expires_at", sa.DateTime(), nullable=False),
+            sa.Column(
+                "created_at",
+                sa.DateTime(),
+                nullable=False,
+                server_default=sa.text("now()"),
+            ),
+            sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
+        )
+        op.create_index("ix_sessions_token", "sessions", ["token"], unique=True)
+        op.create_index("ix_sessions_user_id", "sessions", ["user_id"], unique=False)
+    else:
+        index_names = {idx["name"] for idx in inspector.get_indexes("sessions")}
+        if "ix_sessions_token" not in index_names:
+            op.create_index("ix_sessions_token", "sessions", ["token"], unique=True)
+        if "ix_sessions_user_id" not in index_names:
+            op.create_index("ix_sessions_user_id", "sessions", ["user_id"], unique=False)
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.drop_index("ix_sessions_user_id", table_name="sessions")
-    op.drop_index("ix_sessions_token", table_name="sessions")
-    op.drop_table("sessions")
-
-    op.drop_column("users", "password_hash")
-    op.drop_column("users", "avatar_url")
-    op.drop_column("users", "phone")
-    op.drop_column("users", "full_name")
+    return

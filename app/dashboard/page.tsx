@@ -18,7 +18,7 @@ import { EmptyState } from "@/components/dashboard/empty-state";
 type MeUser = {
   id: string;
   email: string;
-  role: "customer" | "staff" | "admin";
+  role: "customer" | "staff" | "admin" | "superadmin";
 };
 
 type BookingRow = {
@@ -67,6 +67,9 @@ async function getMyBookings(meId: string): Promise<BookingRow[]> {
 export default async function CustomerDashboard() {
   const me = await getMe();
   if (!me) redirect("/auth/login");
+  if (me.role === "admin" || me.role === "superadmin")
+    redirect("/admin/dashboard");
+  if (me.role === "staff") redirect("/staff/dashboard");
 
   const bookings = await getMyBookings(me.id);
 

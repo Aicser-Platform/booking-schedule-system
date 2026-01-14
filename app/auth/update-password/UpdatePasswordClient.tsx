@@ -49,12 +49,10 @@ export default function UpdatePasswordClient() {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-      // NOTE: If your backend endpoint name is different, change it here.
-      // Example: /api/auth/update-password
-      const res = await fetch(`${apiUrl}/api/auth/reset-password`, {
+      const res = await fetch(`${apiUrl}/api/auth/password-reset/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, password }),
+        body: JSON.stringify({ token, new_password: password }),
       });
 
       if (!res.ok) {

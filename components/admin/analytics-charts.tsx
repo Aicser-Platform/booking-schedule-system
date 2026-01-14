@@ -13,8 +13,12 @@ export function AnalyticsCharts() {
     const fetchData = async () => {
       try {
         const [servicesRes, dailyRes] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analytics/services/stats`),
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analytics/daily/stats`),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analytics/services/stats`, {
+            credentials: "include",
+          }),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analytics/daily/stats`, {
+            credentials: "include",
+          }),
         ])
 
         const servicesData = await servicesRes.json()

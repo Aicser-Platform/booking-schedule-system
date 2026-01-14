@@ -16,7 +16,7 @@ type MeUser = {
   id: string;
   email: string;
   full_name?: string | null;
-  role: "customer" | "staff" | "admin";
+  role: "customer" | "staff" | "admin" | "superadmin";
   phone?: string | null;
   avatar_url?: string | null;
 };
@@ -44,7 +44,7 @@ export default async function AdminAvailabilityPage() {
   if (!me) redirect("/auth/login");
 
   // must be admin
-  if (me.role !== "admin") redirect("/dashboard");
+  if (me.role !== "admin" && me.role !== "superadmin") redirect("/dashboard");
 
   return (
     <DashboardLayout>

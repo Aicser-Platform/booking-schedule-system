@@ -105,3 +105,43 @@
 .glow-primary-subtle {
   box-shadow: 0 0 15px rgba(91, 90, 247, 0.15);
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(auth-card),
+  ::view-transition-new(auth-card) {
+    animation-duration: 500ms;
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  ::view-transition-old(auth-card) {
+    opacity: 0.6;
+    filter: blur(4px);
+  }
+
+  ::view-transition-new(auth-card) {
+    opacity: 1;
+    filter: blur(0);
+  }
+
+  ::view-transition-old(auth-brand),
+  ::view-transition-new(auth-brand) {
+    animation-duration: 500ms;
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+}
+
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .float-soft {
+    animation: float-soft 10s ease-in-out infinite;
+  }
+}

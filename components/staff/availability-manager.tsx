@@ -51,8 +51,12 @@ export function AvailabilityManager({ staffId }: AvailabilityManagerProps) {
     setIsLoading(true)
     try {
       const [rulesRes, exceptionsRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/availability/rules/${staffId}`),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/availability/exceptions/${staffId}`),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/availability/rules/${staffId}`, {
+          credentials: "include",
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/availability/exceptions/${staffId}`, {
+          credentials: "include",
+        }),
       ])
 
       const rulesData = await rulesRes.json()
@@ -72,6 +76,7 @@ export function AvailabilityManager({ staffId }: AvailabilityManagerProps) {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/availability/rules`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           staff_id: staffId,
           service_id: null,
@@ -95,6 +100,7 @@ export function AvailabilityManager({ staffId }: AvailabilityManagerProps) {
     try {
       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/availability/rules/${ruleId}`, {
         method: "DELETE",
+        credentials: "include",
       })
       await fetchAvailability()
     } catch (error) {
@@ -109,6 +115,7 @@ export function AvailabilityManager({ staffId }: AvailabilityManagerProps) {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/availability/exceptions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           staff_id: staffId,
           service_id: null,

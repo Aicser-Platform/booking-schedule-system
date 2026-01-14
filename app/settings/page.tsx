@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 type MeUser = {
   id: string;
   email: string;
-  role: "customer" | "staff" | "admin";
+  role: "customer" | "staff" | "admin" | "superadmin";
 };
 
 async function getMe(): Promise<MeUser | null> {

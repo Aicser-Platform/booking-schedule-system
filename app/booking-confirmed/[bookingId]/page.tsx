@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,26 @@ type BookingConfirmedRow = {
     phone?: string | null;
   } | null;
 };
+
+type MeUser = {
+  id: string;
+  email: string;
+  role: "customer" | "staff" | "admin" | "superadmin";
+};
+
+async function getMe(): Promise<MeUser | null> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  const cookie = (await headers()).get("cookie") ?? "";
+
+  const res = await fetch(`${apiUrl}/api/auth/me`, {
+    method: "GET",
+    headers: { Cookie: cookie },
+    cache: "no-store",
+  });
+
+  if (!res.ok) return null;
+  return (await res.json()) as MeUser;
+}
 
 async function getBookingConfirmed(
   bookingId: string
@@ -49,6 +69,9 @@ export default async function BookingConfirmedPage({
   params: { bookingId: string };
 }) {
   const { bookingId } = params;
+
+  const me = await getMe();
+  if (!me) redirect("/auth/login");
 
   const booking = await getBookingConfirmed(bookingId);
   if (!booking || !booking.services) notFound();

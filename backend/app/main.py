@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import auth, users, services, staff, availability, bookings, payments, notifications, analytics
+from app.api import auth, users, services, staff, availability, bookings, payments, notifications, analytics, admin, customers
 from app.core.config import settings
 
 app = FastAPI(title="Appointment Booking API")
@@ -22,6 +22,8 @@ app.include_router(bookings.router, prefix="/api/bookings")
 app.include_router(payments.router, prefix="/api/payments")
 app.include_router(notifications.router, prefix="/api/notifications")
 app.include_router(analytics.router, prefix="/api/analytics")
+app.include_router(admin.router)
+app.include_router(customers.router)
 
 @app.get("/health")
 def health():

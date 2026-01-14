@@ -5,7 +5,7 @@ import { BookingForm } from "@/components/booking/booking-form";
 type MeUser = {
   id: string;
   email: string;
-  role: "customer" | "staff" | "admin";
+  role: "customer" | "staff" | "admin" | "superadmin";
 };
 
 type ServiceRow = {
