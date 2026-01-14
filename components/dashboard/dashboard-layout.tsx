@@ -63,7 +63,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const handleLogout = async () => {
     try {
       // Logout via backend (clears session + cookie)
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
       await fetch(`${apiUrl}/api/auth/logout`, {
         method: "POST",
@@ -179,8 +179,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   <SidebarMenu>
                     {section.items.map((item) => {
                       const isActive = pathname === item.href;
+                      const itemKey = `${section.title}-${item.title}-${item.href}`;
                       return (
-                        <SidebarMenuItem key={item.href}>
+                        <SidebarMenuItem key={itemKey}>
                           <SidebarMenuButton asChild isActive={isActive}>
                             <Link href={item.href}>
                               <item.icon />

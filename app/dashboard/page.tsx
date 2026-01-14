@@ -33,7 +33,7 @@ type BookingRow = {
 };
 
 async function getMe(): Promise<MeUser | null> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   const cookie = (await headers()).get("cookie") ?? "";
 
   const res = await fetch(`${apiUrl}/api/auth/me`, {
@@ -47,17 +47,11 @@ async function getMe(): Promise<MeUser | null> {
 }
 
 async function getMyBookings(meId: string): Promise<BookingRow[]> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   const cookie = (await headers()).get("cookie") ?? "";
 
-  // Backend endpoint you should create (recommended):
-  // GET /api/me/bookings
-  // (no need to pass user id from the client; infer from session)
-  //
-  // If you must keep your existing endpoint:
-  // GET /api/users/:id/bookings
   try {
-    const res = await fetch(`${apiUrl}/api/users/${meId}/bookings`, {
+    const res = await fetch(`${apiUrl}/api/bookings?customer_id=${meId}`, {
       method: "GET",
       headers: { Cookie: cookie },
       cache: "no-store",

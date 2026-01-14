@@ -1,5 +1,4 @@
-"use client"
-
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import type { LucideIcon } from "lucide-react"
 
@@ -9,7 +8,7 @@ interface EmptyStateProps {
   description: string
   action?: {
     label: string
-    onClick: () => void
+    href: string
   }
 }
 
@@ -21,7 +20,11 @@ export function EmptyState({ icon: Icon, title, description, action }: EmptyStat
       </div>
       <h3 className="text-lg font-semibold mb-2">{title}</h3>
       <p className="text-sm text-muted-foreground mb-6 max-w-md">{description}</p>
-      {action && <Button onClick={action.onClick}>{action.label}</Button>}
+      {action && (
+        <Button asChild>
+          <Link href={action.href}>{action.label}</Link>
+        </Button>
+      )}
     </div>
   )
 }

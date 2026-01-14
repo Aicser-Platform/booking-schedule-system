@@ -15,17 +15,13 @@ import { Label } from "@/components/ui/label";
 type MeUser = {
   id: string;
   email: string;
-  role: "customer" | "staff" | "admin";
-};
-
-type UserProfile = {
-  id: string;
+  role: "customer" | "staff" | "admin" | "superadmin";
   full_name?: string | null;
   phone?: string | null;
 };
 
 async function getMe(): Promise<MeUser | null> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   const cookie = (await headers()).get("cookie") ?? "";
 
   const res = await fetch(`${apiUrl}/api/auth/me`, {
@@ -38,31 +34,9 @@ async function getMe(): Promise<MeUser | null> {
   return (await res.json()) as MeUser;
 }
 
-async function getMyProfile(): Promise<UserProfile | null> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-  const cookie = (await headers()).get("cookie") ?? "";
-
-  // Backend endpoint you should create:
-  // GET /api/me/profile
-  try {
-    const res = await fetch(`${apiUrl}/api/me/profile`, {
-      method: "GET",
-      headers: { Cookie: cookie },
-      cache: "no-store",
-    });
-
-    if (!res.ok) return null;
-    return (await res.json()) as UserProfile;
-  } catch {
-    return null;
-  }
-}
-
 export default async function ProfilePage() {
   const me = await getMe();
   if (!me) redirect("/auth/login");
-
-  const profile = await getMyProfile();
 
   return (
     <DashboardLayout>
@@ -85,12 +59,12 @@ export default async function ProfilePage() {
 
           <div className="space-y-2">
             <Label htmlFor="name">Full Name</Label>
-            <Input id="name" defaultValue={profile?.full_name || ""} />
+            <Input id="name" defaultValue={me.full_name || ""} />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="phone">Phone Number</Label>
-            <Input id="phone" type="tel" defaultValue={profile?.phone || ""} />
+            <Input id="phone" type="tel" defaultValue={me.phone || ""} />
           </div>
 
           {/* UI-only until you add a PATCH endpoint + client action */}

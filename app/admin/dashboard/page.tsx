@@ -33,7 +33,7 @@ type AdminDashboardStats = {
 };
 
 async function getMe(): Promise<MeUser | null> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   const cookie = (await headers()).get("cookie") ?? "";
 
   const res = await fetch(`${apiUrl}/api/auth/me`, {
@@ -47,7 +47,7 @@ async function getMe(): Promise<MeUser | null> {
 }
 
 async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   const cookie = (await headers()).get("cookie") ?? "";
 
   // Backend endpoint you should create:

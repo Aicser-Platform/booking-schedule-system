@@ -20,9 +20,31 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    pass
+    op.create_table(
+        "users",
+        sa.Column(
+            "id",
+            sa.UUID(),
+            primary_key=True,
+            nullable=False,
+        ),
+        sa.Column("email", sa.String(length=150), nullable=False, unique=True),
+        sa.Column("role", sa.String(length=20), nullable=False),
+        sa.Column(
+            "is_active",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.text("true"),
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+    )
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    pass
+    op.drop_table("users")

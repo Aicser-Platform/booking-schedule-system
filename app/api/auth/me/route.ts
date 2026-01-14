@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
 export async function GET() {
-  const token = cookies().get("auth_token")?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth_token")?.value;
 
   if (!token) {
     return NextResponse.json({ user: null });
@@ -19,7 +20,9 @@ export async function GET() {
   });
 
   if (!res.ok) {
-    return NextResponse.json({ user: null });
+    const response = NextResponse.json({ user: null });
+    response.cookies.set("auth_token", "", { maxAge: 0, path: "/" });
+    return response;
   }
 
   const user = await res.json();

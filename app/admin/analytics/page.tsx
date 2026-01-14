@@ -17,7 +17,7 @@ type MeUser = {
 };
 
 async function getMe(): Promise<MeUser | null> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   const cookie = (await headers()).get("cookie") ?? "";
 
   const res = await fetch(`${apiUrl}/api/auth/me`, {
@@ -41,7 +41,7 @@ type AdminStats = {
 };
 
 async function getAdminStats(): Promise<AdminStats> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   const cookie = (await headers()).get("cookie") ?? "";
 
   // If you haven't created this endpoint yet, we'll gracefully fall back to zeros.

@@ -6,12 +6,16 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 type AppUser = {
   id: string;
   email: string | null;
+  full_name?: string | null;
+  role?: "customer" | "staff" | "admin" | "superadmin";
+  phone?: string | null;
+  avatar_url?: string | null;
 };
 
 interface UserProfile {
   id: string;
   full_name: string | null;
-  role: "customer" | "staff" | "admin";
+  role: "customer" | "staff" | "admin" | "superadmin";
   phone: string | null;
   avatar_url: string | null;
   email: string | null;
@@ -50,35 +54,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-  const fetchProfile = async (userId: string) => {
-    try {
-      const response = await fetch(`${apiUrl}/api/users/${userId}/profile`, {
-        credentials: "include",
-        cache: "no-store",
-      });
-
-      if (!response.ok) {
-        // If your backend doesn’t have this endpoint yet, you can either:
-        // 1) implement it, OR
-        // 2) remove profile usage in UI until implemented
-        setProfile(null);
-        return;
-      }
-
-      const data = (await response.json()) as UserProfile;
-      setProfile(data);
-    } catch (error) {
-      console.error("[auth-provider] Failed to fetch profile:", error);
-      setProfile(null);
-    }
+  const toProfile = (me: AppUser | null): UserProfile | null => {
+    if (!me) return null;
+    return {
+      id: me.id,
+      full_name: me.full_name ?? null,
+      role: me.role ?? "customer",
+      phone: me.phone ?? null,
+      avatar_url: me.avatar_url ?? null,
+      email: me.email ?? null,
+    };
   };
 
   const refreshProfile = async () => {
-    if (user?.id) {
-      await fetchProfile(user.id);
-    }
+    const me = await fetchMe();
+    setUser(me);
+    setProfile(toProfile(me));
   };
 
   useEffect(() => {
@@ -91,11 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
         setUser(me);
 
-        if (me?.id) {
-          await fetchProfile(me.id);
-        } else {
-          setProfile(null);
-        }
+        setProfile(toProfile(me));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -103,15 +91,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     load();
 
-    // Optional: keep tabs in sync (logout/login in another tab)
-    const onFocus = () => {
-      load();
-    };
-    window.addEventListener("focus", onFocus);
-
     return () => {
       cancelled = true;
-      window.removeEventListener("focus", onFocus);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

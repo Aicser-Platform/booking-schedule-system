@@ -5,6 +5,7 @@ from fastapi import (
     Response,
     Header,
     Body,
+    Cookie,
 )
 from pydantic import BaseModel, EmailStr
 from typing import Optional
@@ -13,6 +14,7 @@ from sqlalchemy import text
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import secrets
+import uuid
 
 from app.core.database import get_db
 
@@ -53,8 +55,8 @@ def create_session_token() -> str:
 
 @router.post("/signup")
 def signup(
+    response: Response,
     payload: SignupBody = Body(...),
-    response: Response = None,
     db: Session = Depends(get_db),
 ):
     if len(payload.password) < 6:
@@ -90,10 +92,11 @@ def signup(
 
     db.execute(
         text("""
-            INSERT INTO sessions (user_id, token, expires_at)
-            VALUES (:user_id, :token, :expires_at)
+            INSERT INTO sessions (id, user_id, token, expires_at)
+            VALUES (:id, :user_id, :token, :expires_at)
         """),
         {
+            "id": str(uuid.uuid4()),
             "user_id": user.id,
             "token": token,
             "expires_at": expires_at,
@@ -120,8 +123,8 @@ def signup(
 
 @router.post("/login")
 def login(
+    response: Response,
     payload: LoginBody = Body(...),
-    response: Response = None,
     db: Session = Depends(get_db),
 ):
     user = db.execute(
@@ -141,10 +144,11 @@ def login(
 
     db.execute(
         text("""
-            INSERT INTO sessions (user_id, token, expires_at)
-            VALUES (:user_id, :token, :expires_at)
+            INSERT INTO sessions (id, user_id, token, expires_at)
+            VALUES (:id, :user_id, :token, :expires_at)
         """),
         {
+            "id": str(uuid.uuid4()),
             "user_id": user.id,
             "token": token,
             "expires_at": expires_at,
@@ -172,12 +176,17 @@ def login(
 @router.get("/me")
 def me(
     authorization: Optional[str] = Header(None),
+    auth_token: Optional[str] = Cookie(None),
     db: Session = Depends(get_db),
 ):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    token = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.replace("Bearer ", "")
+    elif auth_token:
+        token = auth_token
 
-    token = authorization.replace("Bearer ", "")
+    if not token:
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
     user = db.execute(
         text("""
