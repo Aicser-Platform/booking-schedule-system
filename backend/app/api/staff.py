@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from app.core.database import get_db
-from app.core.auth import get_current_user, require_roles, is_admin
+from app.core.auth import get_current_user, require_permissions, require_roles, is_admin
 from app.models.schemas import StaffServiceCreate, StaffServiceResponse
 import uuid
 
@@ -91,7 +91,7 @@ async def staff_dashboard(
 @router.post("/services", response_model=StaffServiceResponse)
 async def assign_staff_to_service(
     assignment: StaffServiceCreate,
-    current_user: dict = Depends(require_roles("admin", "superadmin")),
+    current_user: dict = Depends(require_permissions("staff:manage")),
     db: Session = Depends(get_db)
 ):
     """Assign a staff member to a service (Admin only)"""
@@ -144,7 +144,7 @@ async def get_staff_services(
 @router.delete("/services/{assignment_id}")
 async def remove_staff_from_service(
     assignment_id: str,
-    current_user: dict = Depends(require_roles("admin", "superadmin")),
+    current_user: dict = Depends(require_permissions("staff:manage")),
     db: Session = Depends(get_db),
 ):
     """Remove a staff member from a service (Admin only)"""

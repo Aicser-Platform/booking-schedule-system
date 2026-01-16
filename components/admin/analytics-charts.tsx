@@ -1,40 +1,54 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Line, LineChart } from "recharts"
+import { useEffect, useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Bar,
+  BarChart,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Line,
+  LineChart,
+} from "recharts";
 
 export function AnalyticsCharts() {
-  const [serviceStats, setServiceStats] = useState<any[]>([])
-  const [dailyStats, setDailyStats] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-
+  const [serviceStats, setServiceStats] = useState<any[]>([]);
+  const [dailyStats, setDailyStats] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [servicesRes, dailyRes] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analytics/services/stats`, {
+          fetch(`/api/analytics/services/stats`, {
             credentials: "include",
           }),
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/analytics/daily/stats`, {
+          fetch(`/api/analytics/daily/stats`, {
             credentials: "include",
           }),
-        ])
+        ]);
 
-        const servicesData = await servicesRes.json()
-        const dailyData = await dailyRes.json()
+        const servicesData = await servicesRes.json();
+        const dailyData = await dailyRes.json();
 
-        setServiceStats(servicesData)
-        setDailyStats(dailyData.slice(0, 7).reverse())
+        setServiceStats(servicesData);
+        setDailyStats(dailyData.slice(0, 7).reverse());
       } catch (error) {
-        console.error("Error fetching analytics:", error)
+        console.error("Error fetching analytics:", error);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    fetchData()
-  }, [])
+    fetchData();
+  }, []);
 
   if (isLoading) {
     return (
@@ -43,7 +57,7 @@ export function AnalyticsCharts() {
           <p className="text-muted-foreground">Loading analytics...</p>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -59,7 +73,11 @@ export function AnalyticsCharts() {
               <XAxis dataKey="service_name" fontSize={12} />
               <YAxis fontSize={12} />
               <Tooltip />
-              <Bar dataKey="total_revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              <Bar
+                dataKey="total_revenue"
+                fill="hsl(var(--primary))"
+                radius={[4, 4, 0, 0]}
+              />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -76,11 +94,16 @@ export function AnalyticsCharts() {
               <XAxis dataKey="date" fontSize={12} />
               <YAxis fontSize={12} />
               <Tooltip />
-              <Line type="monotone" dataKey="total_bookings" stroke="hsl(var(--primary))" strokeWidth={2} />
+              <Line
+                type="monotone"
+                dataKey="total_bookings"
+                stroke="hsl(var(--primary))"
+                strokeWidth={2}
+              />
             </LineChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

@@ -16,12 +16,17 @@ services:
     container_name: booking_backend
     env_file:
       - .env
+    environment:
+      RUN_MIGRATIONS: "true"
+      RUN_SEED: "true"
+      MIGRATION_SQL_PATH: "/repo/scripts/001_create_tables.sql"
     ports:
       - "8000:8000"
     depends_on:
       - db
     volumes:
       - .:/app
+      - ..:/repo
 
 volumes:
   booking_db_data:

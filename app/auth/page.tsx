@@ -3,11 +3,12 @@ import { Suspense } from "react";
 import AuthClient from "./auth-client";
 
 type AuthPageProps = {
-  searchParams?: { mode?: string | string[] };
+  searchParams: Promise<{ mode?: string | string[] }>;
 };
 
-export default function AuthPage({ searchParams }: AuthPageProps) {
-  const rawMode = searchParams?.mode;
+export default async function AuthPage({ searchParams }: AuthPageProps) {
+  const params = await searchParams;
+  const rawMode = params?.mode;
   const modeParam = Array.isArray(rawMode) ? rawMode[0] : rawMode;
   const initialMode = modeParam === "signup" ? "signup" : "login";
 

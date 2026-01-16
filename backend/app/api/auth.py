@@ -36,7 +36,6 @@ class SignupBody(BaseModel):
     email: EmailStr
     password: str
     full_name: Optional[str] = None
-    role: str = "customer"
     phone: Optional[str] = None
     timezone: Optional[str] = None
 
@@ -104,6 +103,13 @@ def signup(
 
     user_id = str(uuid.uuid4())
     role = "customer"
+
+    role_exists = db.execute(
+        text("SELECT 1 FROM roles WHERE name = :role"),
+        {"role": role},
+    ).fetchone()
+    if not role_exists:
+        raise HTTPException(status_code=500, detail="Default role is not configured")
 
     user = db.execute(
         text("""

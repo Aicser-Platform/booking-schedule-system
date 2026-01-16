@@ -53,7 +53,7 @@ export default function HomePage() {
                 <Calendar className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-lg font-semibold">AppointBook</p>
+                <p className="text-lg font-semibold">DataBook</p>
                 <p className="text-[0.6rem] uppercase tracking-[0.35em] text-[color:var(--landing-muted)]">
                   Operations Suite
                 </p>
@@ -113,7 +113,9 @@ export default function HomePage() {
               <div className="space-y-6">
                 <h1 className="text-balance text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
                   Scheduling that{" "}
-                  <span className={`${fraunces.className} text-[color:var(--landing-accent)]`}>
+                  <span
+                    className={`${fraunces.className} text-[color:var(--landing-accent)]`}
+                  >
                     feels
                   </span>{" "}
                   like a concierge.
@@ -177,8 +179,16 @@ export default function HomePage() {
                 </div>
                 <div className="mt-6 space-y-3">
                   {[
-                    { time: "09:30 - 10:15", label: "Consultation", status: "Booked" },
-                    { time: "10:30 - 11:00", label: "Follow-up", status: "Confirmed" },
+                    {
+                      time: "09:30 - 10:15",
+                      label: "Consultation",
+                      status: "Booked",
+                    },
+                    {
+                      time: "10:30 - 11:00",
+                      label: "Follow-up",
+                      status: "Confirmed",
+                    },
                     { time: "11:15 - 12:00", label: "Styling", status: "Hold" },
                   ].map((slot) => (
                     <div
@@ -230,7 +240,7 @@ export default function HomePage() {
                 >
                   {name}
                 </div>
-              ),
+              )
             )}
           </div>
         </section>
@@ -251,10 +261,12 @@ export default function HomePage() {
                   <Clock className="h-6 w-6" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold">Time-slot intelligence</h3>
+                  <h3 className="text-xl font-semibold">
+                    Time-slot intelligence
+                  </h3>
                   <p className="text-sm text-[color:var(--landing-muted)]">
-                    Dynamic buffers, auto-reschedule, and smart slot matching keep
-                    your day predictable.
+                    Dynamic buffers, auto-reschedule, and smart slot matching
+                    keep your day predictable.
                   </p>
                 </div>
               </div>
@@ -289,7 +301,9 @@ export default function HomePage() {
             </div>
             <div className="rounded-3xl border border-white/10 bg-[color:var(--landing-surface)]/80 p-6 transition-transform duration-300 hover:-translate-y-1 hover:border-white/20 hover:shadow-[0_18px_45px_rgba(6,10,22,0.45)] lg:col-span-4">
               <Users className="h-8 w-8 text-[color:var(--landing-accent)]" />
-              <h3 className="mt-4 text-xl font-semibold">Staff orchestration</h3>
+              <h3 className="mt-4 text-xl font-semibold">
+                Staff orchestration
+              </h3>
               <p className="mt-2 text-sm text-[color:var(--landing-muted)]">
                 Staff-level schedules, break rules, and skill tagging that
                 auto-assigns bookings.
@@ -299,7 +313,8 @@ export default function HomePage() {
               <Zap className="h-8 w-8 text-[color:var(--landing-warm)]" />
               <h3 className="mt-4 text-xl font-semibold">Instant messaging</h3>
               <p className="mt-2 text-sm text-[color:var(--landing-muted)]">
-                Automated reminders, confirmations, and post-visit reviews built in.
+                Automated reminders, confirmations, and post-visit reviews built
+                in.
               </p>
             </div>
             <div className="rounded-3xl border border-white/10 bg-[color:var(--landing-surface)]/80 p-6 transition-transform duration-300 hover:-translate-y-1 hover:border-white/20 hover:shadow-[0_18px_45px_rgba(6,10,22,0.45)] lg:col-span-4">
@@ -313,10 +328,12 @@ export default function HomePage() {
             <div className="rounded-3xl border border-white/10 bg-[color:var(--landing-surface)]/80 p-6 transition-transform duration-300 hover:-translate-y-1 hover:border-white/20 hover:shadow-[0_18px_45px_rgba(6,10,22,0.45)] lg:col-span-12">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-xl font-semibold">Analytics that speak ops</h3>
+                  <h3 className="text-xl font-semibold">
+                    Analytics that speak ops
+                  </h3>
                   <p className="text-sm text-[color:var(--landing-muted)]">
-                    Track utilization, staff performance, and revenue across every
-                    location.
+                    Track utilization, staff performance, and revenue across
+                    every location.
                   </p>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-[color:var(--landing-muted)]">
@@ -339,7 +356,7 @@ export default function HomePage() {
               </h2>
               <p className="text-sm text-[color:var(--landing-muted)]">
                 Automate the busy work and keep the team focused on service.
-                AppointBook handles everything behind the scenes.
+                DataBook handles everything behind the scenes.
               </p>
             </div>
             <div className="grid gap-4">
@@ -390,12 +407,12 @@ export default function HomePage() {
                   Predict demand, see staffing gaps, and track revenue in one
                   clean overview. Share reports with owners in seconds.
                 </p>
-              <Button
-                asChild
-                className="mt-4 rounded-full bg-[color:var(--landing-accent)] text-white shadow-[0_12px_30px_rgba(91,90,247,0.35)] transition duration-300 hover:-translate-y-0.5 hover:bg-[color:var(--landing-accent-strong)] hover:shadow-[0_18px_40px_rgba(91,90,247,0.4)]"
-              >
-                <Link href="/auth?mode=signup">Explore analytics</Link>
-              </Button>
+                <Button
+                  asChild
+                  className="mt-4 rounded-full bg-[color:var(--landing-accent)] text-white shadow-[0_12px_30px_rgba(91,90,247,0.35)] transition duration-300 hover:-translate-y-0.5 hover:bg-[color:var(--landing-accent-strong)] hover:shadow-[0_18px_40px_rgba(91,90,247,0.4)]"
+                >
+                  <Link href="/auth?mode=signup">Explore analytics</Link>
+                </Button>
               </div>
               <div className="space-y-4 text-sm text-[color:var(--landing-muted)]">
                 {[
@@ -427,8 +444,8 @@ export default function HomePage() {
                 Launch your booking flow this week.
               </h2>
               <p className="text-sm text-[color:var(--landing-muted)]">
-                Start free, then scale to teams and multi-location operations with
-                clear, predictable pricing.
+                Start free, then scale to teams and multi-location operations
+                with clear, predictable pricing.
               </p>
               <div className="flex flex-wrap gap-3">
                 {["Unlimited bookings", "Team calendars", "Payment rules"].map(
@@ -439,7 +456,7 @@ export default function HomePage() {
                     >
                       {perk}
                     </span>
-                  ),
+                  )
                 )}
               </div>
             </div>
@@ -510,10 +527,10 @@ export default function HomePage() {
           <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-4 px-6 py-10 sm:flex-row">
             <div className="flex items-center gap-3">
               <Calendar className="h-5 w-5 text-[color:var(--landing-accent)]" />
-              <span className="font-semibold">AppointBook</span>
+              <span className="font-semibold">DataBook</span>
             </div>
             <p className="text-sm text-[color:var(--landing-muted)]">
-              © 2026 AppointBook. All rights reserved.
+              © 2026 DataBook. All rights reserved.
             </p>
           </div>
         </footer>

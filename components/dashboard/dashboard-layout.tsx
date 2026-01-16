@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import { useEffect, useState } from "react";
 
 import { useAuth } from "@/components/auth/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -29,22 +30,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  LayoutDashboard,
-  Calendar,
-  Users,
-  Settings,
-  CreditCard,
-  Star,
-  BarChart3,
-  Briefcase,
-  Clock,
-  User,
-  LogOut,
-  Bell,
-} from "lucide-react";
+import { LogOut, Bell, User, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import {
+  roleIconMap,
+  roleLabelMap,
+  sidebarConfig,
+  type Role,
+} from "@/components/dashboard/sidebar-config";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -54,12 +48,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, profile } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
 
-  const rawRole =
-    profile?.role ||
-    ((user as any)?.role as "customer" | "staff" | "admin" | "superadmin") ||
-    "customer";
-  const role = rawRole === "superadmin" ? "admin" : rawRole;
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const role = profile?.role || ((user as any)?.role as Role) || "customer";
+
+  const RoleIcon = roleIconMap[role];
 
   const handleLogout = async () => {
     try {
@@ -78,81 +75,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   };
 
-  const getNavigationItems = () => {
-    switch (role) {
-      case "admin":
-        return [
-          {
-            title: "Overview",
-            items: [
-              {
-                title: "Dashboard",
-                icon: LayoutDashboard,
-                href: "/admin/dashboard",
-              },
-              { title: "Analytics", icon: BarChart3, href: "/admin/analytics" },
-            ],
-          },
-          {
-            title: "Management",
-            items: [
-              { title: "Services", icon: Briefcase, href: "/admin/services" },
-              { title: "Staff", icon: Users, href: "/admin/staff" },
-              { title: "Bookings", icon: Calendar, href: "/admin/bookings" },
-              {
-                title: "Availability",
-                icon: Clock,
-                href: "/admin/availability",
-              },
-            ],
-          },
-          {
-            title: "Financial",
-            items: [
-              { title: "Payments", icon: CreditCard, href: "/admin/payments" },
-              { title: "Reports", icon: BarChart3, href: "/admin/reports" },
-            ],
-          },
-          {
-            title: "Engagement",
-            items: [{ title: "Reviews", icon: Star, href: "/admin/reviews" }],
-          },
-        ];
-      case "staff":
-        return [
-          {
-            title: "My Work",
-            items: [
-              {
-                title: "Dashboard",
-                icon: LayoutDashboard,
-                href: "/staff/dashboard",
-              },
-              { title: "Schedule", icon: Calendar, href: "/staff/schedule" },
-              {
-                title: "Availability",
-                icon: Clock,
-                href: "/staff/availability",
-              },
-            ],
-          },
-        ];
-      default:
-        return [
-          {
-            title: "Menu",
-            items: [
-              { title: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-              { title: "Browse Services", icon: Briefcase, href: "/services" },
-              { title: "My Bookings", icon: Calendar, href: "/dashboard" },
-              { title: "Profile", icon: User, href: "/profile" },
-            ],
-          },
-        ];
-    }
-  };
-
-  const navigationItems = getNavigationItems();
+  const navigationItems = sidebarConfig[role] ?? sidebarConfig.customer;
 
   return (
     <SidebarProvider>
@@ -161,12 +84,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <SidebarHeader className="border-b border-border">
             <div className="flex items-center gap-2 px-2 py-3">
               <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground glow-primary-subtle">
-                <Calendar className="size-6" />
+                <RoleIcon className="size-6" />
               </div>
               <div className="flex flex-col">
                 <span className="text-lg font-semibold">BookingPro</span>
                 <span className="text-xs text-muted-foreground capitalize">
-                  {role} Portal
+                  {roleLabelMap[role]} Portal
                 </span>
               </div>
             </div>
@@ -201,56 +124,79 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <SidebarFooter className="border-t border-border">
             <SidebarMenu>
               <SidebarMenuItem>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <SidebarMenuButton size="lg" className="w-full">
-                      <Avatar className="size-8">
-                        <AvatarFallback className="bg-primary text-primary-foreground">
-                          {profile?.full_name?.charAt(0).toUpperCase() ||
-                            user?.email?.charAt(0).toUpperCase() ||
-                            "U"}
-                        </AvatarFallback>
-                      </Avatar>
+                {isMounted ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <SidebarMenuButton size="lg" className="w-full">
+                        <Avatar className="size-8">
+                          <AvatarFallback className="bg-primary text-primary-foreground">
+                            {profile?.full_name?.charAt(0).toUpperCase() ||
+                              user?.email?.charAt(0).toUpperCase() ||
+                              "U"}
+                          </AvatarFallback>
+                        </Avatar>
 
-                      <div className="flex flex-col items-start text-left">
-                        <span className="text-sm font-medium truncate max-w-[150px]">
-                          {profile?.full_name ||
-                            user?.email?.split("@")[0] ||
-                            "User"}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {user?.email || ""}
-                        </span>
-                      </div>
-                    </SidebarMenuButton>
-                  </DropdownMenuTrigger>
+                        <div className="flex flex-col items-start text-left">
+                          <span className="text-sm font-medium truncate max-w-[150px]">
+                            {profile?.full_name ||
+                              user?.email?.split("@")[0] ||
+                              "User"}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {user?.email || ""}
+                          </span>
+                        </div>
+                      </SidebarMenuButton>
+                    </DropdownMenuTrigger>
 
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
 
-                    <DropdownMenuItem asChild>
-                      <Link href="/profile">
-                        <User className="mr-2 size-4" />
-                        Profile
-                      </Link>
-                    </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/profile">
+                          <User className="mr-2 size-4" />
+                          Profile
+                        </Link>
+                      </DropdownMenuItem>
 
-                    <DropdownMenuItem asChild>
-                      <Link href="/settings">
-                        <Settings className="mr-2 size-4" />
-                        Settings
-                      </Link>
-                    </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/settings">
+                          <Settings className="mr-2 size-4" />
+                          Settings
+                        </Link>
+                      </DropdownMenuItem>
 
-                    <DropdownMenuSeparator />
+                      <DropdownMenuSeparator />
 
-                    <DropdownMenuItem onClick={handleLogout}>
-                      <LogOut className="mr-2 size-4" />
-                      Logout
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                      <DropdownMenuItem onClick={handleLogout}>
+                        <LogOut className="mr-2 size-4" />
+                        Logout
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <SidebarMenuButton size="lg" className="w-full">
+                    <Avatar className="size-8">
+                      <AvatarFallback className="bg-primary text-primary-foreground">
+                        {profile?.full_name?.charAt(0).toUpperCase() ||
+                          user?.email?.charAt(0).toUpperCase() ||
+                          "U"}
+                      </AvatarFallback>
+                    </Avatar>
+
+                    <div className="flex flex-col items-start text-left">
+                      <span className="text-sm font-medium truncate max-w-[150px]">
+                        {profile?.full_name ||
+                          user?.email?.split("@")[0] ||
+                          "User"}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {user?.email || ""}
+                      </span>
+                    </div>
+                  </SidebarMenuButton>
+                )}
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarFooter>

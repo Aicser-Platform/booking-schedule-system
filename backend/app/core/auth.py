@@ -68,3 +68,38 @@ def is_admin(user: Dict[str, Any]) -> bool:
 
 def is_staff(user: Dict[str, Any]) -> bool:
     return user.get("role") in STAFF_ROLES
+
+
+def get_permissions_for_role(db: Session, role: str) -> Set[str]:
+    result = db.execute(
+        text(
+            """
+            SELECT p.code
+            FROM role_permissions rp
+            JOIN permissions p ON p.code = rp.permission_code
+            WHERE rp.role_name = :role
+            """
+        ),
+        {"role": role},
+    )
+    return {row[0] for row in result.fetchall()}
+
+
+def require_permissions(*permissions: Iterable[str]):
+    required = {perm for perm in permissions}
+
+    def permission_guard(
+        current_user: Dict[str, Any] = Depends(get_current_user),
+        db: Session = Depends(get_db),
+    ) -> Dict[str, Any]:
+        role = current_user.get("role")
+        if not role:
+            raise HTTPException(status_code=403, detail="Forbidden")
+
+        user_permissions = get_permissions_for_role(db, role)
+        if not required.issubset(user_permissions):
+            raise HTTPException(status_code=403, detail="Forbidden")
+
+        return current_user
+
+    return permission_guard

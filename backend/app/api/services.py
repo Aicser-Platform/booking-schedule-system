@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from app.core.database import get_db
-from app.core.auth import require_roles
+from app.core.auth import require_permissions
 from app.models.schemas import ServiceCreate, ServiceUpdate, ServiceResponse
 import uuid
 
@@ -42,7 +42,7 @@ async def get_service(service_id: str, db: Session = Depends(get_db)):
 @router.post("/", response_model=ServiceResponse, status_code=status.HTTP_201_CREATED)
 async def create_service(
     service: ServiceCreate,
-    current_user: dict = Depends(require_roles("admin", "superadmin")),
+    current_user: dict = Depends(require_permissions("services:manage")),
     db: Session = Depends(get_db)
 ):
     """Create a new service (Admin only)"""
@@ -76,7 +76,7 @@ async def create_service(
 async def update_service(
     service_id: str,
     service: ServiceUpdate,
-    current_user: dict = Depends(require_roles("admin", "superadmin")),
+    current_user: dict = Depends(require_permissions("services:manage")),
     db: Session = Depends(get_db)
 ):
     """Update a service (Admin only)"""
@@ -121,7 +121,7 @@ async def update_service(
 @router.delete("/{service_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_service(
     service_id: str,
-    current_user: dict = Depends(require_roles("admin", "superadmin")),
+    current_user: dict = Depends(require_permissions("services:manage")),
     db: Session = Depends(get_db),
 ):
     """Delete a service (Admin only)"""
