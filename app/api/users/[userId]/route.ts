@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
 type RouteContext = {
-  params: { userId: string };
+  params: { userId: string } | Promise<{ userId: string }>;
 };
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
@@ -13,7 +13,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const { userId } = context.params;
+  const params = await Promise.resolve(context.params);
+  const { userId } = params ?? {};
   if (!userId || userId === "undefined") {
     return NextResponse.json({ message: "Invalid user id" }, { status: 400 });
   }
