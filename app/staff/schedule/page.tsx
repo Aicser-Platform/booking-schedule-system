@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar } from "lucide-react";
+import { AvailabilityCalendar } from "@/components/availability/availability-calendar";
 
 type MeUser = {
   id: string;
@@ -38,21 +37,7 @@ export default async function StaffSchedulePage() {
           View your complete appointment schedule
         </p>
       </div>
-
-      <Card className="glass-card">
-        <CardHeader>
-          <CardTitle>Calendar View</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-12">
-            <Calendar className="mb-4 size-12 text-muted-foreground" />
-            <p className="mb-2 text-lg font-medium">Schedule Calendar</p>
-            <p className="text-sm text-muted-foreground">
-              Your full schedule will appear here
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <AvailabilityCalendar mode="staff" staffId={me.id} />
     </DashboardLayout>
   );
 }

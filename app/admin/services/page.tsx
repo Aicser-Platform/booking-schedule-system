@@ -12,7 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/dashboard/empty-state";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit } from "lucide-react";
+import DeleteServiceButton from "./DeleteServiceButton";
 
 type MeUser = {
   id: string;
@@ -24,10 +25,12 @@ type ServiceRow = {
   id: string;
   name: string;
   description?: string | null;
+  image_url?: string | null;
   is_active: boolean;
   duration_minutes: number;
   price: number;
   deposit_amount: number;
+  buffer_minutes: number;
   max_capacity: number;
 };
 
@@ -92,6 +95,15 @@ export default async function AdminServicesPage() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {services.map((service) => (
             <Card key={service.id} className="glass-card">
+              {service.image_url && (
+                <div className="overflow-hidden rounded-t-xl">
+                  <img
+                    src={service.image_url}
+                    alt={service.name}
+                    className="h-36 w-full object-cover"
+                  />
+                </div>
+              )}
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -123,6 +135,10 @@ export default async function AdminServicesPage() {
                     <p className="font-medium">${service.deposit_amount}</p>
                   </div>
                   <div>
+                    <p className="text-muted-foreground">Buffer</p>
+                    <p className="font-medium">{service.buffer_minutes} min</p>
+                  </div>
+                  <div>
                     <p className="text-muted-foreground">Capacity</p>
                     <p className="font-medium">{service.max_capacity}</p>
                   </div>
@@ -142,13 +158,7 @@ export default async function AdminServicesPage() {
                   </Button>
 
                   {/* UI-only until you add a delete endpoint + client action */}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    aria-label="Delete service"
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
+                  <DeleteServiceButton serviceId={service.id} />
                 </div>
               </CardContent>
             </Card>

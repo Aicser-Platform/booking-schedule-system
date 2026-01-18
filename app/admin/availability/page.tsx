@@ -2,15 +2,8 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "lucide-react";
+import { AvailabilityCalendar } from "@/components/availability/availability-calendar";
+import { ScheduleApprovals } from "@/components/availability/schedule-approvals";
 
 type MeUser = {
   id: string;
@@ -56,25 +49,10 @@ export default async function AdminAvailabilityPage() {
           Configure staff schedules and holiday blocking
         </p>
       </div>
-
-      <Card className="glass-card">
-        <CardHeader>
-          <CardTitle>Holiday & Block Dates</CardTitle>
-          <CardDescription>
-            Set dates when booking should be blocked
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-12">
-            <Calendar className="mb-4 size-12 text-muted-foreground" />
-            <p className="mb-2 text-lg font-medium">Availability Manager</p>
-            <p className="mb-4 text-sm text-muted-foreground">
-              Configure working hours and exceptions
-            </p>
-            <Button>Configure Availability</Button>
-          </div>
-        </CardContent>
-      </Card>
+      <AvailabilityCalendar mode="admin" />
+      <div className="mt-6">
+        <ScheduleApprovals />
+      </div>
     </DashboardLayout>
   );
 }

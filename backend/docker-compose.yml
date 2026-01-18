@@ -27,6 +27,7 @@ services:
     volumes:
       - .:/app
       - ..:/repo
+      - ./uploads:/app/app/uploads
 
 volumes:
   booking_db_data:

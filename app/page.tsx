@@ -240,7 +240,7 @@ export default function HomePage() {
                 >
                   {name}
                 </div>
-              )
+              ),
             )}
           </div>
         </section>
@@ -456,7 +456,7 @@ export default function HomePage() {
                     >
                       {perk}
                     </span>
-                  )
+                  ),
                 )}
               </div>
             </div>

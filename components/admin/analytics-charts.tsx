@@ -35,8 +35,16 @@ export function AnalyticsCharts() {
           }),
         ]);
 
-        const servicesData = await servicesRes.json();
-        const dailyData = await dailyRes.json();
+        if (!servicesRes.ok || !dailyRes.ok) {
+          const servicesText = await servicesRes.text().catch(() => "");
+          const dailyText = await dailyRes.text().catch(() => "");
+          throw new Error(
+            `Analytics request failed: services=${servicesRes.status}, daily=${dailyRes.status}. ${servicesText || dailyText}`,
+          );
+        }
+
+        const servicesData = (await servicesRes.json()) as any[];
+        const dailyData = (await dailyRes.json()) as any[];
 
         setServiceStats(servicesData);
         setDailyStats(dailyData.slice(0, 7).reverse());

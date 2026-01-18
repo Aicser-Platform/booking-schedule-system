@@ -38,6 +38,19 @@ CREATE TABLE IF NOT EXISTS public.users (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Locations
+CREATE TABLE IF NOT EXISTS public.locations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name VARCHAR(150) NOT NULL,
+  timezone VARCHAR(50) NOT NULL DEFAULT 'UTC',
+  address TEXT,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.users
+  ADD COLUMN IF NOT EXISTS location_id UUID REFERENCES public.locations(id);
+
 -- Ensure only one admin and one superadmin
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_users_admin_role
   ON public.users(role)
@@ -70,24 +83,65 @@ CREATE TABLE IF NOT EXISTS public.services (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   admin_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
   name VARCHAR(150) NOT NULL,
+  public_name VARCHAR(150),
+  internal_name VARCHAR(150),
+  category VARCHAR(120),
+  tags TEXT[],
   description TEXT,
+  inclusions TEXT,
+  prep_notes TEXT,
+  image_url VARCHAR(255),
   duration_minutes INTEGER NOT NULL DEFAULT 60,
   price DECIMAL(10, 2) NOT NULL DEFAULT 0,
   deposit_amount DECIMAL(10, 2) DEFAULT 0,
   buffer_minutes INTEGER DEFAULT 0,
   max_capacity INTEGER DEFAULT 1,
   is_active BOOLEAN DEFAULT TRUE,
+  is_archived BOOLEAN DEFAULT FALSE,
+  archived_at TIMESTAMP WITH TIME ZONE,
+  paused_from TIMESTAMP WITH TIME ZONE,
+  paused_until TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+ALTER TABLE public.services
+  ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP WITH TIME ZONE,
+  ADD COLUMN IF NOT EXISTS paused_from TIMESTAMP WITH TIME ZONE,
+  ADD COLUMN IF NOT EXISTS paused_until TIMESTAMP WITH TIME ZONE,
+  ADD COLUMN IF NOT EXISTS public_name VARCHAR(150),
+  ADD COLUMN IF NOT EXISTS internal_name VARCHAR(150),
+  ADD COLUMN IF NOT EXISTS category VARCHAR(120),
+  ADD COLUMN IF NOT EXISTS tags TEXT[],
+  ADD COLUMN IF NOT EXISTS inclusions TEXT,
+  ADD COLUMN IF NOT EXISTS prep_notes TEXT;
 
 -- Staff services (many-to-many)
 CREATE TABLE IF NOT EXISTS public.staff_services (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   staff_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
   service_id UUID REFERENCES public.services(id) ON DELETE CASCADE,
+  price_override DECIMAL(10, 2),
+  deposit_override DECIMAL(10, 2),
+  duration_override INTEGER,
+  buffer_override INTEGER,
+  capacity_override INTEGER,
+  is_bookable BOOLEAN DEFAULT TRUE,
+  is_temporarily_unavailable BOOLEAN DEFAULT FALSE,
+  admin_only BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(staff_id, service_id)
 );
+
+ALTER TABLE public.staff_services
+  ADD COLUMN IF NOT EXISTS price_override DECIMAL(10, 2),
+  ADD COLUMN IF NOT EXISTS deposit_override DECIMAL(10, 2),
+  ADD COLUMN IF NOT EXISTS duration_override INTEGER,
+  ADD COLUMN IF NOT EXISTS buffer_override INTEGER,
+  ADD COLUMN IF NOT EXISTS capacity_override INTEGER,
+  ADD COLUMN IF NOT EXISTS is_bookable BOOLEAN DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS is_temporarily_unavailable BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS admin_only BOOLEAN DEFAULT FALSE;
 
 -- Availability rules
 CREATE TABLE IF NOT EXISTS public.availability_rules (
@@ -111,6 +165,91 @@ CREATE TABLE IF NOT EXISTS public.availability_exceptions (
   start_time TIME,
   end_time TIME,
   reason VARCHAR(255),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Staff weekly schedules
+CREATE TABLE IF NOT EXISTS public.staff_weekly_schedules (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  staff_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  timezone VARCHAR(50) NOT NULL DEFAULT 'UTC',
+  effective_from DATE,
+  effective_to DATE,
+  is_default BOOLEAN DEFAULT FALSE,
+  location_id UUID REFERENCES public.locations(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Working blocks per weekday
+CREATE TABLE IF NOT EXISTS public.staff_work_blocks (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  schedule_id UUID REFERENCES public.staff_weekly_schedules(id) ON DELETE CASCADE,
+  weekday INTEGER NOT NULL CHECK (weekday BETWEEN 0 AND 6),
+  start_time_local TIME NOT NULL,
+  end_time_local TIME NOT NULL
+);
+
+-- Break blocks per weekday
+CREATE TABLE IF NOT EXISTS public.staff_break_blocks (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  schedule_id UUID REFERENCES public.staff_weekly_schedules(id) ON DELETE CASCADE,
+  weekday INTEGER NOT NULL CHECK (weekday BETWEEN 0 AND 6),
+  start_time_local TIME NOT NULL,
+  end_time_local TIME NOT NULL
+);
+
+-- Staff availability exceptions (UTC)
+CREATE TABLE IF NOT EXISTS public.staff_exceptions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  staff_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  location_id UUID REFERENCES public.locations(id) ON DELETE SET NULL,
+  type VARCHAR(30) NOT NULL
+    CHECK (type IN ('time_off', 'blocked_time', 'extra_availability', 'override_day')),
+  start_utc TIMESTAMP WITH TIME ZONE NOT NULL,
+  end_utc TIMESTAMP WITH TIME ZONE NOT NULL,
+  is_all_day BOOLEAN DEFAULT FALSE,
+  recurring_rule TEXT,
+  reason VARCHAR(255),
+  created_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Booking holds (temporary reservations)
+CREATE TABLE IF NOT EXISTS public.booking_holds (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  staff_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  service_id UUID REFERENCES public.services(id) ON DELETE CASCADE,
+  location_id UUID REFERENCES public.locations(id) ON DELETE SET NULL,
+  start_utc TIMESTAMP WITH TIME ZONE NOT NULL,
+  end_utc TIMESTAMP WITH TIME ZONE NOT NULL,
+  expires_at_utc TIMESTAMP WITH TIME ZONE NOT NULL,
+  created_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Staff service overrides
+CREATE TABLE IF NOT EXISTS public.staff_service_overrides (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  staff_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  service_id UUID REFERENCES public.services(id) ON DELETE CASCADE,
+  price_override DECIMAL(10, 2),
+  deposit_override DECIMAL(10, 2),
+  duration_override INTEGER,
+  buffer_override INTEGER,
+  capacity_override INTEGER,
+  is_bookable BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(staff_id, service_id)
+);
+
+-- Audit logs
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  actor_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  action VARCHAR(50) NOT NULL,
+  entity_type VARCHAR(50) NOT NULL,
+  entity_id UUID,
+  changes JSONB,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -198,12 +337,38 @@ CREATE TABLE IF NOT EXISTS public.notifications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   booking_id UUID REFERENCES public.bookings(id) ON DELETE CASCADE,
   channel VARCHAR(20) NOT NULL CHECK (channel IN ('email', 'sms')),
-  type VARCHAR(30) NOT NULL CHECK (type IN ('confirmation', 'reminder', 'cancellation', 'feedback')),
+  type VARCHAR(30) NOT NULL CHECK (
+    type IN (
+      'confirmation',
+      'reminder',
+      'cancellation',
+      'feedback',
+      'schedule_change',
+      'schedule_approved',
+      'schedule_rejected'
+    )
+  ),
   recipient VARCHAR(150) NOT NULL,
   status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed')),
   sent_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+ALTER TABLE public.notifications
+  DROP CONSTRAINT IF EXISTS notifications_type_check;
+
+ALTER TABLE public.notifications
+  ADD CONSTRAINT notifications_type_check CHECK (
+    type IN (
+      'confirmation',
+      'reminder',
+      'cancellation',
+      'feedback',
+      'schedule_change',
+      'schedule_approved',
+      'schedule_rejected'
+    )
+  );
 
 -- Waitlist
 CREATE TABLE IF NOT EXISTS public.waitlist (
@@ -226,6 +391,21 @@ CREATE TABLE IF NOT EXISTS public.reviews (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Schedule change requests (approval workflow)
+CREATE TABLE IF NOT EXISTS public.schedule_change_requests (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  staff_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  requested_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'approved', 'rejected')),
+  payload JSONB NOT NULL,
+  reason TEXT,
+  review_note TEXT,
+  reviewed_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  reviewed_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_users_role ON public.users(role);
 CREATE INDEX IF NOT EXISTS idx_services_admin ON public.services(admin_id);
@@ -241,3 +421,16 @@ CREATE INDEX IF NOT EXISTS idx_bookings_status ON public.bookings(status);
 CREATE INDEX IF NOT EXISTS idx_bookings_start_time ON public.bookings(start_time_utc);
 CREATE INDEX IF NOT EXISTS idx_payments_booking ON public.payments(booking_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_booking ON public.reviews(booking_id);
+CREATE INDEX IF NOT EXISTS idx_schedule_change_requests_staff ON public.schedule_change_requests(staff_id);
+CREATE INDEX IF NOT EXISTS idx_schedule_change_requests_status ON public.schedule_change_requests(status);
+CREATE INDEX IF NOT EXISTS idx_users_location ON public.users(location_id);
+CREATE INDEX IF NOT EXISTS idx_locations_active ON public.locations(is_active);
+CREATE INDEX IF NOT EXISTS idx_staff_weekly_schedules_staff ON public.staff_weekly_schedules(staff_id);
+CREATE INDEX IF NOT EXISTS idx_staff_weekly_schedules_location ON public.staff_weekly_schedules(location_id);
+CREATE INDEX IF NOT EXISTS idx_staff_work_blocks_schedule ON public.staff_work_blocks(schedule_id);
+CREATE INDEX IF NOT EXISTS idx_staff_break_blocks_schedule ON public.staff_break_blocks(schedule_id);
+CREATE INDEX IF NOT EXISTS idx_staff_exceptions_staff ON public.staff_exceptions(staff_id);
+CREATE INDEX IF NOT EXISTS idx_staff_exceptions_start ON public.staff_exceptions(start_utc);
+CREATE INDEX IF NOT EXISTS idx_booking_holds_staff ON public.booking_holds(staff_id);
+CREATE INDEX IF NOT EXISTS idx_booking_holds_expires ON public.booking_holds(expires_at_utc);
+CREATE INDEX IF NOT EXISTS idx_staff_service_overrides_staff ON public.staff_service_overrides(staff_id);

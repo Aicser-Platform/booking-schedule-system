@@ -1,9 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from app.api import auth, users, services, staff, availability, bookings, payments, notifications, analytics, admin, customers
 from app.core.config import settings
 
 app = FastAPI(title="Appointment Booking API")
+
+uploads_dir = Path(__file__).resolve().parent.parent / "uploads"
+uploads_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,

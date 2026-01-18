@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from app.core.database import get_db
 from app.core.auth import get_current_user, is_admin
+from app.core.config import settings
 from app.models.schemas import (
     BookingCreate, BookingUpdate, BookingResponse, BookingWithDetails
 )
@@ -68,7 +70,7 @@ async def create_booking(
 
     # Get service details to calculate end time
     service_result = db.execute(
-        "SELECT duration_minutes FROM services WHERE id = :id",
+        "SELECT duration_minutes, buffer_minutes FROM services WHERE id = :id",
         {"id": booking.service_id}
     )
     service = service_result.fetchone()
@@ -76,7 +78,100 @@ async def create_booking(
     if not service:
         raise HTTPException(status_code=404, detail="Service not found")
     
-    end_time_utc = booking.start_time_utc + timedelta(minutes=service[0])
+    duration_minutes = int(service[0])
+    buffer_minutes = int(service[1] or 0)
+    end_time_utc = booking.start_time_utc + timedelta(minutes=duration_minutes + buffer_minutes)
+
+    schedule = db.execute(
+        """
+        SELECT id, timezone
+        FROM staff_weekly_schedules
+        WHERE staff_id = :staff_id
+          AND (effective_from IS NULL OR effective_from <= :date)
+          AND (effective_to IS NULL OR effective_to >= :date)
+        ORDER BY is_default DESC, effective_from DESC NULLS LAST
+        LIMIT 1
+        """,
+        {
+            "staff_id": booking.staff_id,
+            "date": booking.start_time_utc.date(),
+        },
+    ).fetchone()
+
+    if not schedule:
+        raise HTTPException(status_code=400, detail="Staff schedule is not configured")
+
+    schedule_tz = ZoneInfo(schedule[1])
+    local_start = booking.start_time_utc.astimezone(schedule_tz)
+    local_end = end_time_utc.astimezone(schedule_tz)
+    local_date = local_start.date()
+
+    schedule = db.execute(
+        """
+        SELECT id, timezone
+        FROM staff_weekly_schedules
+        WHERE staff_id = :staff_id
+          AND (effective_from IS NULL OR effective_from <= :date)
+          AND (effective_to IS NULL OR effective_to >= :date)
+        ORDER BY is_default DESC, effective_from DESC NULLS LAST
+        LIMIT 1
+        """,
+        {
+            "staff_id": booking.staff_id,
+            "date": local_date,
+        },
+    ).fetchone()
+
+    if not schedule:
+        raise HTTPException(status_code=400, detail="Staff schedule is not configured")
+    weekday = (local_start.weekday() + 1) % 7
+
+    now_local = datetime.now(schedule_tz)
+    min_notice_cutoff = now_local + timedelta(minutes=settings.MIN_NOTICE_MINUTES)
+    if local_start < min_notice_cutoff:
+        raise HTTPException(status_code=400, detail="Booking does not meet minimum notice")
+
+    max_booking_cutoff = now_local + timedelta(days=settings.MAX_BOOKING_DAYS)
+    if local_start > max_booking_cutoff:
+        raise HTTPException(status_code=400, detail="Booking exceeds maximum window")
+
+    work_blocks = db.execute(
+        """
+        SELECT start_time_local, end_time_local
+        FROM staff_work_blocks
+        WHERE schedule_id = :schedule_id AND weekday = :weekday
+        """,
+        {"schedule_id": schedule[0], "weekday": weekday},
+    ).fetchall()
+
+    if not work_blocks:
+        raise HTTPException(status_code=400, detail="Staff is not available on this day")
+
+    fits_work_block = False
+    for block in work_blocks:
+        block_start = datetime.combine(local_start.date(), block[0], tzinfo=schedule_tz)
+        block_end = datetime.combine(local_start.date(), block[1], tzinfo=schedule_tz)
+        if local_start >= block_start and local_end <= block_end:
+            fits_work_block = True
+            break
+
+    if not fits_work_block:
+        raise HTTPException(status_code=400, detail="Time is outside staff working hours")
+
+    break_blocks = db.execute(
+        """
+        SELECT start_time_local, end_time_local
+        FROM staff_break_blocks
+        WHERE schedule_id = :schedule_id AND weekday = :weekday
+        """,
+        {"schedule_id": schedule[0], "weekday": weekday},
+    ).fetchall()
+
+    for block in break_blocks:
+        block_start = datetime.combine(local_start.date(), block[0], tzinfo=schedule_tz)
+        block_end = datetime.combine(local_start.date(), block[1], tzinfo=schedule_tz)
+        if local_start < block_end and local_end > block_start:
+            raise HTTPException(status_code=400, detail="Time overlaps a staff break")
     
     # Check if slot is available
     conflict_result = db.execute(
@@ -97,6 +192,42 @@ async def create_booking(
     
     if conflict_result.fetchone():
         raise HTTPException(status_code=400, detail="Time slot is not available")
+
+    exception_result = db.execute(
+        """
+        SELECT id FROM staff_exceptions
+        WHERE staff_id = :staff_id
+          AND type IN ('time_off', 'blocked_time')
+          AND start_utc < :end_time AND end_utc > :start_time
+        """,
+        {
+            "staff_id": booking.staff_id,
+            "start_time": booking.start_time_utc,
+            "end_time": end_time_utc,
+        },
+    )
+
+    if exception_result.fetchone():
+        raise HTTPException(status_code=400, detail="Staff is unavailable for this time")
+
+    hold_query = (
+        "SELECT id FROM booking_holds "
+        "WHERE staff_id = :staff_id "
+        "AND expires_at_utc > NOW() "
+        "AND start_utc < :end_time AND end_utc > :start_time"
+    )
+    hold_params = {
+        "staff_id": booking.staff_id,
+        "start_time": booking.start_time_utc,
+        "end_time": end_time_utc,
+    }
+    if current_user.get("id"):
+        hold_query += " AND (created_by IS NULL OR created_by <> :created_by)"
+        hold_params["created_by"] = current_user.get("id")
+
+    hold_result = db.execute(hold_query, hold_params)
+    if hold_result.fetchone():
+        raise HTTPException(status_code=400, detail="Time slot is on hold")
     
     # Create booking
     db.execute(
@@ -116,6 +247,23 @@ async def create_booking(
             "booking_source": booking.booking_source,
             "customer_timezone": booking.customer_timezone,
         }
+    )
+    db.commit()
+
+    db.execute(
+        """
+        DELETE FROM booking_holds
+        WHERE staff_id = :staff_id
+          AND start_utc < :end_time
+          AND end_utc > :start_time
+          AND (created_by IS NULL OR created_by = :created_by)
+        """,
+        {
+            "staff_id": booking.staff_id,
+            "start_time": booking.start_time_utc,
+            "end_time": end_time_utc,
+            "created_by": current_user.get("id"),
+        },
     )
     db.commit()
     

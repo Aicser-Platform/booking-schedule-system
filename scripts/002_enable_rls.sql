@@ -13,6 +13,15 @@ ALTER TABLE public.refunds ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.waitlist ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.schedule_change_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.locations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.staff_weekly_schedules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.staff_work_blocks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.staff_break_blocks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.staff_exceptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.booking_holds ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.staff_service_overrides ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- User Profiles Policies
 CREATE POLICY "Users can view their own profile" ON public.user_profiles
@@ -244,6 +253,124 @@ CREATE POLICY "Customers can create reviews for their bookings" ON public.review
 
 CREATE POLICY "Admin can manage all reviews" ON public.reviews
   FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.user_profiles
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+-- Schedule Change Requests Policies
+CREATE POLICY "Staff can create schedule requests" ON public.schedule_change_requests
+  FOR INSERT WITH CHECK (staff_id = auth.uid());
+
+CREATE POLICY "Staff can view their schedule requests" ON public.schedule_change_requests
+  FOR SELECT USING (staff_id = auth.uid());
+
+CREATE POLICY "Admin can manage schedule requests" ON public.schedule_change_requests
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.user_profiles
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+-- Locations Policies
+CREATE POLICY "Everyone can view active locations" ON public.locations
+  FOR SELECT USING (is_active = TRUE);
+
+CREATE POLICY "Admin can manage locations" ON public.locations
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.user_profiles
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+-- Staff Weekly Schedule Policies
+CREATE POLICY "Staff can manage their own weekly schedules" ON public.staff_weekly_schedules
+  FOR ALL USING (staff_id = auth.uid());
+
+CREATE POLICY "Admin can manage all weekly schedules" ON public.staff_weekly_schedules
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.user_profiles
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+-- Staff Work Blocks Policies
+CREATE POLICY "Staff can manage their own work blocks" ON public.staff_work_blocks
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.staff_weekly_schedules s
+      WHERE s.id = schedule_id AND s.staff_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Admin can manage all work blocks" ON public.staff_work_blocks
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.user_profiles
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+-- Staff Break Blocks Policies
+CREATE POLICY "Staff can manage their own break blocks" ON public.staff_break_blocks
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.staff_weekly_schedules s
+      WHERE s.id = schedule_id AND s.staff_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Admin can manage all break blocks" ON public.staff_break_blocks
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.user_profiles
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+-- Staff Exceptions Policies
+CREATE POLICY "Staff can manage their own exceptions" ON public.staff_exceptions
+  FOR ALL USING (staff_id = auth.uid());
+
+CREATE POLICY "Admin can manage all exceptions" ON public.staff_exceptions
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.user_profiles
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+-- Booking Holds Policies
+CREATE POLICY "Staff can view their own holds" ON public.booking_holds
+  FOR SELECT USING (staff_id = auth.uid());
+
+CREATE POLICY "Staff can create their own holds" ON public.booking_holds
+  FOR INSERT WITH CHECK (staff_id = auth.uid());
+
+CREATE POLICY "Admin can manage all holds" ON public.booking_holds
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.user_profiles
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+-- Staff Service Overrides Policies
+CREATE POLICY "Admin can manage staff service overrides" ON public.staff_service_overrides
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.user_profiles
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+-- Audit Logs Policies
+CREATE POLICY "Admin can view audit logs" ON public.audit_logs
+  FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM public.user_profiles
       WHERE id = auth.uid() AND role = 'admin'

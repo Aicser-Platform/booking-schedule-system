@@ -6,7 +6,14 @@ from decimal import Decimal
 # Service Schemas
 class ServiceBase(BaseModel):
     name: str
+    public_name: Optional[str] = None
+    internal_name: Optional[str] = None
+    category: Optional[str] = None
+    tags: Optional[List[str]] = None
     description: Optional[str] = None
+    inclusions: Optional[str] = None
+    prep_notes: Optional[str] = None
+    image_url: Optional[str] = None
     duration_minutes: int = 60
     price: Decimal
     deposit_amount: Decimal = Decimal("0")
@@ -19,18 +26,31 @@ class ServiceCreate(ServiceBase):
 
 class ServiceUpdate(BaseModel):
     name: Optional[str] = None
+    public_name: Optional[str] = None
+    internal_name: Optional[str] = None
+    category: Optional[str] = None
+    tags: Optional[List[str]] = None
     description: Optional[str] = None
+    inclusions: Optional[str] = None
+    prep_notes: Optional[str] = None
+    image_url: Optional[str] = None
     duration_minutes: Optional[int] = None
     price: Optional[Decimal] = None
     deposit_amount: Optional[Decimal] = None
     buffer_minutes: Optional[int] = None
     max_capacity: Optional[int] = None
     is_active: Optional[bool] = None
+    paused_from: Optional[datetime] = None
+    paused_until: Optional[datetime] = None
 
 class ServiceResponse(ServiceBase):
     id: str
     admin_id: Optional[str]
     created_at: datetime
+    is_archived: bool = False
+    archived_at: Optional[datetime] = None
+    paused_from: Optional[datetime] = None
+    paused_until: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -39,11 +59,59 @@ class ServiceResponse(ServiceBase):
 class StaffServiceCreate(BaseModel):
     staff_id: str
     service_id: str
+    price_override: Optional[Decimal] = None
+    deposit_override: Optional[Decimal] = None
+    duration_override: Optional[int] = None
+    buffer_override: Optional[int] = None
+    capacity_override: Optional[int] = None
+    is_bookable: Optional[bool] = True
+    is_temporarily_unavailable: Optional[bool] = False
+    admin_only: Optional[bool] = False
+
+
+class StaffServiceUpdate(BaseModel):
+    price_override: Optional[Decimal] = None
+    deposit_override: Optional[Decimal] = None
+    duration_override: Optional[int] = None
+    buffer_override: Optional[int] = None
+    capacity_override: Optional[int] = None
+    is_bookable: Optional[bool] = None
+    is_temporarily_unavailable: Optional[bool] = None
+    admin_only: Optional[bool] = None
 
 class StaffServiceResponse(BaseModel):
     id: str
     staff_id: str
     service_id: str
+    created_at: datetime
+    price_override: Optional[Decimal] = None
+    deposit_override: Optional[Decimal] = None
+    duration_override: Optional[int] = None
+    buffer_override: Optional[int] = None
+    capacity_override: Optional[int] = None
+    is_bookable: bool = True
+    is_temporarily_unavailable: bool = False
+    admin_only: bool = False
+
+# Location Schemas
+class LocationCreate(BaseModel):
+    name: str
+    timezone: str = "UTC"
+    address: Optional[str] = None
+    is_active: bool = True
+
+class LocationUpdate(BaseModel):
+    name: Optional[str] = None
+    timezone: Optional[str] = None
+    address: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class LocationResponse(BaseModel):
+    id: str
+    name: str
+    timezone: str
+    address: Optional[str]
+    is_active: bool
     created_at: datetime
 
 # Availability Schemas
@@ -83,6 +151,163 @@ class AvailabilityExceptionResponse(BaseModel):
     start_time: Optional[time]
     end_time: Optional[time]
     reason: Optional[str]
+    created_at: datetime
+
+# Weekly Schedule Schemas
+class StaffWeeklyScheduleCreate(BaseModel):
+    staff_id: str
+    timezone: str = "UTC"
+    effective_from: Optional[date] = None
+    effective_to: Optional[date] = None
+    is_default: bool = False
+    location_id: Optional[str] = None
+
+class StaffWeeklyScheduleResponse(BaseModel):
+    id: str
+    staff_id: str
+    timezone: str
+    effective_from: Optional[date]
+    effective_to: Optional[date]
+    is_default: bool
+    location_id: Optional[str]
+    created_at: datetime
+
+class StaffWorkBlockCreate(BaseModel):
+    schedule_id: str
+    weekday: int  # 0 = Sunday, 6 = Saturday
+    start_time_local: time
+    end_time_local: time
+
+class StaffWorkBlockResponse(BaseModel):
+    id: str
+    schedule_id: str
+    weekday: int
+    start_time_local: time
+    end_time_local: time
+
+class StaffBreakBlockCreate(BaseModel):
+    schedule_id: str
+    weekday: int  # 0 = Sunday, 6 = Saturday
+    start_time_local: time
+    end_time_local: time
+
+class StaffBreakBlockResponse(BaseModel):
+    id: str
+    schedule_id: str
+    weekday: int
+    start_time_local: time
+    end_time_local: time
+
+class StaffExceptionCreate(BaseModel):
+    staff_id: str
+    location_id: Optional[str] = None
+    type: str  # time_off | blocked_time | extra_availability | override_day
+    start_utc: datetime
+    end_utc: datetime
+    is_all_day: bool = False
+    recurring_rule: Optional[str] = None
+    reason: Optional[str] = None
+
+class StaffExceptionBulkCreate(BaseModel):
+    staff_ids: Optional[List[str]] = None
+    location_id: Optional[str] = None
+    type: str  # time_off | blocked_time | extra_availability | override_day
+    start_utc: datetime
+    end_utc: datetime
+    is_all_day: bool = False
+    recurring_rule: Optional[str] = None
+    reason: Optional[str] = None
+
+class StaffExceptionResponse(BaseModel):
+    id: str
+    staff_id: str
+    location_id: Optional[str]
+    type: str
+    start_utc: datetime
+    end_utc: datetime
+    is_all_day: bool
+    recurring_rule: Optional[str]
+    reason: Optional[str]
+    created_by: Optional[str]
+    created_at: datetime
+
+class BookingHoldCreate(BaseModel):
+    staff_id: str
+    service_id: str
+    location_id: Optional[str] = None
+    start_utc: datetime
+    end_utc: datetime
+    expires_at_utc: datetime
+
+class BookingHoldResponse(BaseModel):
+    id: str
+    staff_id: str
+    service_id: str
+    location_id: Optional[str]
+    start_utc: datetime
+    end_utc: datetime
+    expires_at_utc: datetime
+    created_by: Optional[str]
+    created_at: datetime
+
+class StaffServiceOverrideCreate(BaseModel):
+    staff_id: str
+    service_id: str
+    price_override: Optional[Decimal] = None
+    deposit_override: Optional[Decimal] = None
+    duration_override: Optional[int] = None
+    buffer_override: Optional[int] = None
+    capacity_override: Optional[int] = None
+    is_bookable: Optional[bool] = True
+
+class StaffServiceOverrideUpdate(BaseModel):
+    price_override: Optional[Decimal] = None
+    deposit_override: Optional[Decimal] = None
+    duration_override: Optional[int] = None
+    buffer_override: Optional[int] = None
+    capacity_override: Optional[int] = None
+    is_bookable: Optional[bool] = None
+
+class StaffServiceOverrideResponse(BaseModel):
+    id: str
+    staff_id: str
+    service_id: str
+    price_override: Optional[Decimal]
+    deposit_override: Optional[Decimal]
+    duration_override: Optional[int]
+    buffer_override: Optional[int]
+    capacity_override: Optional[int]
+    is_bookable: bool
+    created_at: datetime
+
+class AuditLogResponse(BaseModel):
+    id: str
+    actor_id: Optional[str]
+    action: str
+    entity_type: str
+    entity_id: Optional[str]
+    changes: Optional[dict]
+    created_at: datetime
+
+# Schedule Change Request Schemas
+class ScheduleChangeRequestCreate(BaseModel):
+    staff_id: str
+    payload: dict
+    reason: Optional[str] = None
+
+class ScheduleChangeRequestReview(BaseModel):
+    review_note: Optional[str] = None
+
+class ScheduleChangeRequestResponse(BaseModel):
+    id: str
+    staff_id: str
+    requested_by: Optional[str]
+    status: str
+    payload: dict
+    reason: Optional[str]
+    review_note: Optional[str]
+    reviewed_by: Optional[str]
+    reviewed_at: Optional[datetime]
     created_at: datetime
 
 class AvailableSlot(BaseModel):

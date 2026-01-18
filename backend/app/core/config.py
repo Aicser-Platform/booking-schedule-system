@@ -43,6 +43,13 @@ class Settings(BaseSettings):
     ABA_PAYWAY_API_KEY: str = "mock_api_key"
     ABA_PAYWAY_API_URL: str = "https://checkout-sandbox.payway.com.kh/api"
 
+    # =========================
+    # Booking Policies
+    # =========================
+    SLOT_GRANULARITY_MINUTES: int = 15
+    MIN_NOTICE_MINUTES: int = 120
+    MAX_BOOKING_DAYS: int = 90
+
     @property
     def cors_origins_list(self) -> List[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]

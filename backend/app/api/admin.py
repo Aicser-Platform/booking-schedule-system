@@ -1,12 +1,17 @@
 import csv
 import io
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from typing import List
+from sqlalchemy import text
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.core.auth import require_roles
+from app.core.audit import log_audit
 from app.core.database import get_db
+from app.models.schemas import LocationCreate, LocationUpdate, LocationResponse
+import uuid
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -49,6 +54,125 @@ def list_staff(
         for row in staff_rows
     ]
 
+@router.get("/locations", response_model=List[LocationResponse])
+def list_locations(
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
+    db: Session = Depends(get_db),
+):
+    result = db.execute(
+        "SELECT * FROM locations ORDER BY created_at DESC"
+    )
+    return [dict(row._mapping) for row in result.fetchall()]
+
+@router.post("/locations", response_model=LocationResponse)
+def create_location(
+    payload: LocationCreate,
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
+    db: Session = Depends(get_db),
+):
+    location_id = str(uuid.uuid4())
+    db.execute(
+        """
+        INSERT INTO locations (id, name, timezone, address, is_active)
+        VALUES (:id, :name, :timezone, :address, :is_active)
+        """,
+        {
+            "id": location_id,
+            "name": payload.name,
+            "timezone": payload.timezone,
+            "address": payload.address,
+            "is_active": payload.is_active,
+        },
+    )
+    log_audit(
+        db,
+        current_user.get("id"),
+        "create",
+        "location",
+        location_id,
+        payload.model_dump(),
+    )
+    db.commit()
+    created = db.execute(
+        "SELECT * FROM locations WHERE id = :id",
+        {"id": location_id},
+    ).fetchone()
+    return dict(created._mapping)
+
+@router.put("/locations/{location_id}", response_model=LocationResponse)
+def update_location(
+    location_id: str,
+    payload: LocationUpdate,
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
+    db: Session = Depends(get_db),
+):
+    updates = []
+    params = {"id": location_id}
+
+    if payload.name is not None:
+        updates.append("name = :name")
+        params["name"] = payload.name
+    if payload.timezone is not None:
+        updates.append("timezone = :timezone")
+        params["timezone"] = payload.timezone
+    if payload.address is not None:
+        updates.append("address = :address")
+        params["address"] = payload.address
+    if payload.is_active is not None:
+        updates.append("is_active = :is_active")
+        params["is_active"] = payload.is_active
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    result = db.execute(
+        f"UPDATE locations SET {', '.join(updates)} WHERE id = :id",
+        params,
+    )
+    log_audit(
+        db,
+        current_user.get("id"),
+        "update",
+        "location",
+        location_id,
+        payload.model_dump(),
+    )
+    db.commit()
+
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    updated = db.execute(
+        "SELECT * FROM locations WHERE id = :id",
+        {"id": location_id},
+    ).fetchone()
+    return dict(updated._mapping)
+
+@router.delete("/locations/{location_id}")
+def delete_location(
+    location_id: str,
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
+    db: Session = Depends(get_db),
+):
+    result = db.execute(
+        "DELETE FROM locations WHERE id = :id",
+        {"id": location_id},
+    )
+    log_audit(
+        db,
+        current_user.get("id"),
+        "delete",
+        "location",
+        location_id,
+        None,
+    )
+    db.commit()
+
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    return {"message": "Location deleted"}
+
 
 @router.get("/services")
 def list_services(
@@ -56,13 +180,25 @@ def list_services(
     db: Session = Depends(get_db),
 ):
     result = db.execute(
-        """
-        SELECT id, name, description, is_active, duration_minutes, price, deposit_amount, max_capacity
-        FROM services
-        ORDER BY created_at DESC
-        """
+        text(
+            """
+            SELECT id, name, description, image_url, is_active, duration_minutes, price, deposit_amount,
+                   buffer_minutes, max_capacity, is_archived, archived_at, paused_from, paused_until
+            FROM services
+            WHERE is_archived = FALSE
+            ORDER BY created_at DESC
+            """
+        )
     )
-    return [dict(row._mapping) for row in result.fetchall()]
+    services = []
+    for row in result.fetchall():
+        data = dict(row._mapping)
+        if data.get("id") is not None:
+            data["id"] = str(data["id"])
+        if data.get("admin_id") is not None:
+            data["admin_id"] = str(data["admin_id"])
+        services.append(data)
+    return services
 
 
 @router.get("/bookings")
