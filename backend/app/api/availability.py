@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional, Dict, Tuple
 from datetime import datetime, date, time, timedelta, timezone as dt_timezone
+import calendar
 import json
 from time import time as now_ts
 from zoneinfo import ZoneInfo
@@ -99,6 +100,173 @@ def _clip_interval(
     if clipped_start >= clipped_end:
         return None
     return (clipped_start, clipped_end)
+
+def _intersect_intervals(
+    left: List[Tuple[datetime, datetime]],
+    right: List[Tuple[datetime, datetime]],
+) -> List[Tuple[datetime, datetime]]:
+    if not left or not right:
+        return []
+    left = _merge_intervals(left)
+    right = _merge_intervals(right)
+    result: List[Tuple[datetime, datetime]] = []
+    for l_start, l_end in left:
+        for r_start, r_end in right:
+            start = max(l_start, r_start)
+            end = min(l_end, r_end)
+            if start < end:
+                result.append((start, end))
+    return _merge_intervals(result)
+
+def _is_nth_weekday_in_month(target_date: date, weekday: int, nth: int) -> bool:
+    if target_date.weekday() != weekday:
+        return False
+    first_day = target_date.replace(day=1)
+    offset = (weekday - first_day.weekday()) % 7
+    first_occurrence = 1 + offset
+    occurrence = ((target_date.day - first_occurrence) // 7) + 1
+    if nth == -1:
+        last_day = calendar.monthrange(target_date.year, target_date.month)[1]
+        last_date = target_date.replace(day=last_day)
+        last_offset = (last_date.weekday() - weekday) % 7
+        last_occurrence_day = last_day - last_offset
+        return target_date.day == last_occurrence_day
+    return occurrence == nth
+
+def _get_service_operating_intervals(
+    db: Session,
+    service_id: str,
+    target_date: date,
+    schedule_tz: ZoneInfo,
+) -> List[Tuple[datetime, datetime]]:
+    schedule = db.execute(
+        text(
+            """
+            SELECT * FROM service_operating_schedules
+            WHERE service_id = :service_id
+              AND is_active = TRUE
+              AND (effective_from IS NULL OR effective_from <= :date)
+              AND (effective_to IS NULL OR effective_to >= :date)
+            ORDER BY created_at DESC
+            LIMIT 1
+            """
+        ),
+        {"service_id": service_id, "date": target_date},
+    ).fetchone()
+
+    day_start = datetime.combine(target_date, time(0, 0), tzinfo=schedule_tz)
+    day_end = day_start + timedelta(days=1)
+
+    if not schedule:
+        return [(day_start, day_end)]
+
+    schedule_map = schedule._mapping
+    service_tz = ZoneInfo(schedule_map.get("timezone") or "UTC")
+    service_day_start = datetime.combine(target_date, time(0, 0), tzinfo=service_tz)
+    service_day_end = service_day_start + timedelta(days=1)
+    service_weekday = (service_day_start.weekday() + 1) % 7
+
+    exceptions = db.execute(
+        text(
+            """
+            SELECT is_open, start_time, end_time
+            FROM service_operating_exceptions
+            WHERE service_id = :service_id AND date = :date
+            """
+        ),
+        {"service_id": service_id, "date": target_date},
+    ).fetchall()
+
+    if exceptions:
+        open_exceptions = [ex for ex in exceptions if ex[0]]
+        if not open_exceptions:
+            return []
+        intervals = []
+        for ex in open_exceptions:
+            if ex[1] and ex[2]:
+                start_dt = datetime.combine(target_date, ex[1], tzinfo=service_tz)
+                end_dt = datetime.combine(target_date, ex[2], tzinfo=service_tz)
+            else:
+                start_dt = service_day_start
+                end_dt = service_day_end
+            intervals.append((start_dt, end_dt))
+    else:
+        rule_type = schedule_map.get("rule_type")
+        intervals: List[Tuple[datetime, datetime]] = []
+
+        if rule_type == "daily":
+            open_time = schedule_map.get("open_time")
+            close_time = schedule_map.get("close_time")
+            if open_time and close_time:
+                intervals.append(
+                    (
+                        datetime.combine(target_date, open_time, tzinfo=service_tz),
+                        datetime.combine(target_date, close_time, tzinfo=service_tz),
+                    )
+                )
+            else:
+                intervals.append((service_day_start, service_day_end))
+        else:
+            rules = db.execute(
+                text(
+                    """
+                    SELECT rule_type, weekday, month_day, nth, start_time, end_time
+                    FROM service_operating_rules
+                    WHERE schedule_id = :schedule_id
+                    """
+                ),
+                {"schedule_id": schedule_map.get("id")},
+            ).fetchall()
+
+            for rule in rules:
+                rule_type_value = rule[0]
+                weekday = rule[1]
+                month_day = rule[2]
+                nth = rule[3]
+                start_time = rule[4]
+                end_time = rule[5]
+
+                is_match = False
+                if rule_type == "weekly" and rule_type_value == "weekly":
+                    is_match = weekday == service_weekday
+                elif rule_type == "monthly" and rule_type_value == "monthly_day":
+                    is_match = month_day == target_date.day
+                elif rule_type == "monthly" and rule_type_value == "monthly_nth_weekday":
+                    if weekday is not None and nth is not None:
+                        is_match = _is_nth_weekday_in_month(target_date, weekday, nth)
+
+                if not is_match:
+                    continue
+
+                if start_time and end_time:
+                    intervals.append(
+                        (
+                            datetime.combine(target_date, start_time, tzinfo=service_tz),
+                            datetime.combine(target_date, end_time, tzinfo=service_tz),
+                        )
+                    )
+                elif schedule_map.get("open_time") and schedule_map.get("close_time"):
+                    intervals.append(
+                        (
+                            datetime.combine(target_date, schedule_map["open_time"], tzinfo=service_tz),
+                            datetime.combine(target_date, schedule_map["close_time"], tzinfo=service_tz),
+                        )
+                    )
+                else:
+                    intervals.append((service_day_start, service_day_end))
+
+        if not intervals:
+            return []
+
+    converted: List[Tuple[datetime, datetime]] = []
+    for start_dt, end_dt in intervals:
+        converted_start = start_dt.astimezone(schedule_tz)
+        converted_end = end_dt.astimezone(schedule_tz)
+        clipped = _clip_interval(converted_start, converted_end, day_start, day_end)
+        if clipped:
+            converted.append(clipped)
+
+    return _merge_intervals(converted)
 
 def _round_up_to_granularity(value: datetime, granularity_minutes: int) -> datetime:
     midnight = value.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -307,6 +475,16 @@ def _compute_slots_for_date(
 
         if extra_intervals:
             intervals = _merge_intervals(intervals + extra_intervals)
+
+        service_intervals = _get_service_operating_intervals(
+            db=db,
+            service_id=service_id,
+            target_date=target_date,
+            schedule_tz=schedule_tz,
+        )
+        if not service_intervals:
+            continue
+        intervals = _intersect_intervals(intervals, service_intervals)
 
         if not intervals:
             continue

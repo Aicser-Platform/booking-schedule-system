@@ -5,7 +5,15 @@ from typing import List
 from pathlib import Path
 from app.core.database import get_db
 from app.core.auth import require_permissions
-from app.models.schemas import ServiceCreate, ServiceUpdate, ServiceResponse
+from app.models.schemas import (
+    ServiceCreate,
+    ServiceUpdate,
+    ServiceResponse,
+    ServiceOperatingScheduleCreate,
+    ServiceOperatingScheduleUpdate,
+    ServiceOperatingRuleCreate,
+    ServiceOperatingExceptionCreate,
+)
 import uuid
 
 router = APIRouter()
@@ -19,6 +27,12 @@ def _normalize_service_row(row: dict) -> dict:
         row["id"] = str(row["id"])
     if row.get("admin_id") is not None:
         row["admin_id"] = str(row["admin_id"])
+    return row
+
+def _normalize_uuid_fields(row: dict, fields: list[str]) -> dict:
+    for field in fields:
+        if row.get(field) is not None:
+            row[field] = str(row[field])
     return row
 
 @router.get("/", response_model=List[ServiceResponse])
@@ -119,13 +133,13 @@ async def create_service(
             INSERT INTO services (
                 id, admin_id, name, public_name, internal_name, category, tags,
                 description, inclusions, prep_notes, duration_minutes,
-                price, deposit_amount, buffer_minutes, max_capacity, is_active, image_url,
+                price, deposit_amount, buffer_minutes, max_capacity, is_active, image_url, image_urls,
                 is_archived, paused_from, paused_until
             )
             VALUES (
                 :id, :admin_id, :name, :public_name, :internal_name, :category, :tags,
                 :description, :inclusions, :prep_notes, :duration_minutes,
-                :price, :deposit_amount, :buffer_minutes, :max_capacity, :is_active, :image_url,
+                :price, :deposit_amount, :buffer_minutes, :max_capacity, :is_active, :image_url, :image_urls,
                 :is_archived, :paused_from, :paused_until
             )
             """
@@ -148,6 +162,7 @@ async def create_service(
             "max_capacity": service.max_capacity,
             "is_active": service.is_active,
             "image_url": service.image_url,
+            "image_urls": service.image_urls,
             "is_archived": False,
             "paused_from": None,
             "paused_until": None,
@@ -237,6 +252,9 @@ async def update_service(
     if service.image_url is not None:
         updates.append("image_url = :image_url")
         params["image_url"] = service.image_url
+    if service.image_urls is not None:
+        updates.append("image_urls = :image_urls")
+        params["image_urls"] = service.image_urls
     if service.paused_from is not None:
         updates.append("paused_from = :paused_from")
         params["paused_from"] = service.paused_from
@@ -297,6 +315,267 @@ async def delete_service(
         raise HTTPException(status_code=404, detail="Service not found")
 
     return None
+
+@router.get("/{service_id}/operating-schedule")
+async def get_service_operating_schedule(
+    service_id: str,
+    current_user: dict = Depends(require_permissions("services:manage")),
+    db: Session = Depends(get_db),
+):
+    schedule = db.execute(
+        text(
+            """
+            SELECT * FROM service_operating_schedules
+            WHERE service_id = :service_id
+            ORDER BY created_at DESC
+            LIMIT 1
+            """
+        ),
+        {"service_id": service_id},
+    ).fetchone()
+
+    if not schedule:
+        return {"schedule": None, "rules": [], "exceptions": []}
+
+    schedule_dict = _normalize_uuid_fields(
+        dict(schedule._mapping),
+        ["id", "service_id"],
+    )
+    schedule_id = schedule_dict["id"]
+
+    rules = db.execute(
+        text(
+            """
+            SELECT * FROM service_operating_rules
+            WHERE schedule_id = :schedule_id
+            ORDER BY created_at DESC
+            """
+        ),
+        {"schedule_id": schedule_id},
+    ).fetchall()
+
+    exceptions = db.execute(
+        text(
+            """
+            SELECT * FROM service_operating_exceptions
+            WHERE service_id = :service_id
+            ORDER BY date DESC
+            """
+        ),
+        {"service_id": service_id},
+    ).fetchall()
+
+    rules_data = [
+        _normalize_uuid_fields(dict(row._mapping), ["id", "schedule_id"])
+        for row in rules
+    ]
+    exceptions_data = [
+        _normalize_uuid_fields(dict(row._mapping), ["id", "service_id"])
+        for row in exceptions
+    ]
+
+    return {
+        "schedule": schedule_dict,
+        "rules": rules_data,
+        "exceptions": exceptions_data,
+    }
+
+@router.post("/{service_id}/operating-schedule")
+async def create_service_operating_schedule(
+    service_id: str,
+    payload: ServiceOperatingScheduleCreate,
+    current_user: dict = Depends(require_permissions("services:manage")),
+    db: Session = Depends(get_db),
+):
+    schedule_id = str(uuid.uuid4())
+    db.execute(
+        text(
+            """
+            INSERT INTO service_operating_schedules
+                (id, service_id, timezone, rule_type, open_time, close_time,
+                 effective_from, effective_to, is_active)
+            VALUES
+                (:id, :service_id, :timezone, :rule_type, :open_time, :close_time,
+                 :effective_from, :effective_to, :is_active)
+            """
+        ),
+        {
+            "id": schedule_id,
+            "service_id": service_id,
+            "timezone": payload.timezone,
+            "rule_type": payload.rule_type,
+            "open_time": payload.open_time,
+            "close_time": payload.close_time,
+            "effective_from": payload.effective_from,
+            "effective_to": payload.effective_to,
+            "is_active": payload.is_active,
+        },
+    )
+    db.commit()
+
+    return await get_service_operating_schedule(service_id, current_user, db)
+
+@router.put("/{service_id}/operating-schedule")
+async def update_service_operating_schedule(
+    service_id: str,
+    payload: ServiceOperatingScheduleUpdate,
+    current_user: dict = Depends(require_permissions("services:manage")),
+    db: Session = Depends(get_db),
+):
+    schedule = db.execute(
+        text(
+            """
+            SELECT id FROM service_operating_schedules
+            WHERE service_id = :service_id
+            ORDER BY created_at DESC
+            LIMIT 1
+            """
+        ),
+        {"service_id": service_id},
+    ).fetchone()
+
+    if not schedule:
+        return await create_service_operating_schedule(service_id, payload, current_user, db)
+
+    updates = []
+    params: dict[str, object] = {"id": schedule[0]}
+
+    if payload.timezone is not None:
+        updates.append("timezone = :timezone")
+        params["timezone"] = payload.timezone
+    if payload.rule_type is not None:
+        updates.append("rule_type = :rule_type")
+        params["rule_type"] = payload.rule_type
+    if payload.open_time is not None:
+        updates.append("open_time = :open_time")
+        params["open_time"] = payload.open_time
+    if payload.close_time is not None:
+        updates.append("close_time = :close_time")
+        params["close_time"] = payload.close_time
+    if payload.effective_from is not None:
+        updates.append("effective_from = :effective_from")
+        params["effective_from"] = payload.effective_from
+    if payload.effective_to is not None:
+        updates.append("effective_to = :effective_to")
+        params["effective_to"] = payload.effective_to
+    if payload.is_active is not None:
+        updates.append("is_active = :is_active")
+        params["is_active"] = payload.is_active
+
+    if updates:
+        query = f"UPDATE service_operating_schedules SET {', '.join(updates)} WHERE id = :id"
+        db.execute(text(query), params)
+        db.commit()
+
+    return await get_service_operating_schedule(service_id, current_user, db)
+
+@router.post("/{service_id}/operating-schedule/rules")
+async def add_service_operating_rule(
+    service_id: str,
+    payload: ServiceOperatingRuleCreate,
+    current_user: dict = Depends(require_permissions("services:manage")),
+    db: Session = Depends(get_db),
+):
+    schedule = db.execute(
+        text(
+            """
+            SELECT id FROM service_operating_schedules
+            WHERE service_id = :service_id
+            ORDER BY created_at DESC
+            LIMIT 1
+            """
+        ),
+        {"service_id": service_id},
+    ).fetchone()
+
+    if not schedule:
+        raise HTTPException(status_code=400, detail="Service schedule not configured")
+
+    rule_id = str(uuid.uuid4())
+    db.execute(
+        text(
+            """
+            INSERT INTO service_operating_rules
+                (id, schedule_id, rule_type, weekday, month_day, nth, start_time, end_time)
+            VALUES
+                (:id, :schedule_id, :rule_type, :weekday, :month_day, :nth, :start_time, :end_time)
+            """
+        ),
+        {
+            "id": rule_id,
+            "schedule_id": schedule[0],
+            "rule_type": payload.rule_type,
+            "weekday": payload.weekday,
+            "month_day": payload.month_day,
+            "nth": payload.nth,
+            "start_time": payload.start_time,
+            "end_time": payload.end_time,
+        },
+    )
+    db.commit()
+
+    return await get_service_operating_schedule(service_id, current_user, db)
+
+@router.delete("/{service_id}/operating-schedule/rules/{rule_id}")
+async def delete_service_operating_rule(
+    service_id: str,
+    rule_id: str,
+    current_user: dict = Depends(require_permissions("services:manage")),
+    db: Session = Depends(get_db),
+):
+    db.execute(
+        text("DELETE FROM service_operating_rules WHERE id = :id"),
+        {"id": rule_id},
+    )
+    db.commit()
+
+    return await get_service_operating_schedule(service_id, current_user, db)
+
+@router.post("/{service_id}/operating-schedule/exceptions")
+async def add_service_operating_exception(
+    service_id: str,
+    payload: ServiceOperatingExceptionCreate,
+    current_user: dict = Depends(require_permissions("services:manage")),
+    db: Session = Depends(get_db),
+):
+    exception_id = str(uuid.uuid4())
+    db.execute(
+        text(
+            """
+            INSERT INTO service_operating_exceptions
+                (id, service_id, date, is_open, start_time, end_time, reason)
+            VALUES
+                (:id, :service_id, :date, :is_open, :start_time, :end_time, :reason)
+            """
+        ),
+        {
+            "id": exception_id,
+            "service_id": service_id,
+            "date": payload.date,
+            "is_open": payload.is_open,
+            "start_time": payload.start_time,
+            "end_time": payload.end_time,
+            "reason": payload.reason,
+        },
+    )
+    db.commit()
+
+    return await get_service_operating_schedule(service_id, current_user, db)
+
+@router.delete("/{service_id}/operating-schedule/exceptions/{exception_id}")
+async def delete_service_operating_exception(
+    service_id: str,
+    exception_id: str,
+    current_user: dict = Depends(require_permissions("services:manage")),
+    db: Session = Depends(get_db),
+):
+    db.execute(
+        text("DELETE FROM service_operating_exceptions WHERE id = :id"),
+        {"id": exception_id},
+    )
+    db.commit()
+
+    return await get_service_operating_schedule(service_id, current_user, db)
 
 @router.get("/{service_id}/staff")
 async def get_service_staff(service_id: str, db: Session = Depends(get_db)):

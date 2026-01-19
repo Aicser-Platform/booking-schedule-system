@@ -91,6 +91,7 @@ CREATE TABLE IF NOT EXISTS public.services (
   inclusions TEXT,
   prep_notes TEXT,
   image_url VARCHAR(255),
+  image_urls TEXT[],
   duration_minutes INTEGER NOT NULL DEFAULT 60,
   price DECIMAL(10, 2) NOT NULL DEFAULT 0,
   deposit_amount DECIMAL(10, 2) DEFAULT 0,
@@ -114,7 +115,8 @@ ALTER TABLE public.services
   ADD COLUMN IF NOT EXISTS category VARCHAR(120),
   ADD COLUMN IF NOT EXISTS tags TEXT[],
   ADD COLUMN IF NOT EXISTS inclusions TEXT,
-  ADD COLUMN IF NOT EXISTS prep_notes TEXT;
+  ADD COLUMN IF NOT EXISTS prep_notes TEXT,
+  ADD COLUMN IF NOT EXISTS image_urls TEXT[];
 
 -- Staff services (many-to-many)
 CREATE TABLE IF NOT EXISTS public.staff_services (
@@ -152,6 +154,45 @@ CREATE TABLE IF NOT EXISTS public.availability_rules (
   start_time TIME NOT NULL,
   end_time TIME NOT NULL,
   timezone VARCHAR(50) DEFAULT 'UTC',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Service operating schedules (service-level availability)
+CREATE TABLE IF NOT EXISTS public.service_operating_schedules (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  service_id UUID UNIQUE REFERENCES public.services(id) ON DELETE CASCADE,
+  timezone VARCHAR(50) NOT NULL DEFAULT 'UTC',
+  rule_type VARCHAR(20) NOT NULL CHECK (rule_type IN ('daily', 'weekly', 'monthly')),
+  open_time TIME,
+  close_time TIME,
+  effective_from DATE,
+  effective_to DATE,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Service operating rules (weekly or monthly patterns)
+CREATE TABLE IF NOT EXISTS public.service_operating_rules (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  schedule_id UUID REFERENCES public.service_operating_schedules(id) ON DELETE CASCADE,
+  rule_type VARCHAR(30) NOT NULL CHECK (rule_type IN ('weekly', 'monthly_day', 'monthly_nth_weekday')),
+  weekday INTEGER CHECK (weekday BETWEEN 0 AND 6),
+  month_day INTEGER CHECK (month_day BETWEEN 1 AND 31),
+  nth INTEGER,
+  start_time TIME,
+  end_time TIME,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Service operating exceptions (open/close overrides)
+CREATE TABLE IF NOT EXISTS public.service_operating_exceptions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  service_id UUID REFERENCES public.services(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  is_open BOOLEAN DEFAULT FALSE,
+  start_time TIME,
+  end_time TIME,
+  reason VARCHAR(255),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

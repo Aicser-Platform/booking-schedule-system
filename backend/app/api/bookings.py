@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time, date
+import calendar
 from zoneinfo import ZoneInfo
 from app.core.database import get_db
 from app.core.auth import get_current_user, is_admin
@@ -12,6 +13,122 @@ from app.models.schemas import (
 import uuid
 
 router = APIRouter()
+
+def _is_nth_weekday_in_month(target_date: date, weekday: int, nth: int) -> bool:
+    if target_date.weekday() != weekday:
+        return False
+    first_day = target_date.replace(day=1)
+    offset = (weekday - first_day.weekday()) % 7
+    first_occurrence = 1 + offset
+    occurrence = ((target_date.day - first_occurrence) // 7) + 1
+    if nth == -1:
+        last_day = calendar.monthrange(target_date.year, target_date.month)[1]
+        last_date = target_date.replace(day=last_day)
+        last_offset = (last_date.weekday() - weekday) % 7
+        last_occurrence_day = last_day - last_offset
+        return target_date.day == last_occurrence_day
+    return occurrence == nth
+
+def _service_allows_booking(
+    db: Session,
+    service_id: str,
+    local_start: datetime,
+    local_end: datetime,
+    schedule_tz: ZoneInfo,
+) -> bool:
+    schedule = db.execute(
+        """
+        SELECT * FROM service_operating_schedules
+        WHERE service_id = :service_id
+          AND is_active = TRUE
+          AND (effective_from IS NULL OR effective_from <= :date)
+          AND (effective_to IS NULL OR effective_to >= :date)
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        {"service_id": service_id, "date": local_start.date()},
+    ).fetchone()
+
+    if not schedule:
+        return True
+
+    exceptions = db.execute(
+        """
+        SELECT is_open, start_time, end_time
+        FROM service_operating_exceptions
+        WHERE service_id = :service_id AND date = :date
+        """,
+        {"service_id": service_id, "date": local_start.date()},
+    ).fetchall()
+
+    if exceptions:
+        open_exceptions = [ex for ex in exceptions if ex[0]]
+        if not open_exceptions:
+            return False
+        for ex in open_exceptions:
+            if ex[1] and ex[2]:
+                start_dt = datetime.combine(local_start.date(), ex[1], tzinfo=schedule_tz)
+                end_dt = datetime.combine(local_start.date(), ex[2], tzinfo=schedule_tz)
+            else:
+                start_dt = datetime.combine(local_start.date(), time(0, 0), tzinfo=schedule_tz)
+                end_dt = start_dt + timedelta(days=1)
+            if local_start >= start_dt and local_end <= end_dt:
+                return True
+        return False
+
+    schedule_map = schedule._mapping
+    rule_type = schedule_map.get("rule_type")
+    open_time = schedule_map.get("open_time")
+    close_time = schedule_map.get("close_time")
+    weekday = (local_start.weekday() + 1) % 7
+
+    if rule_type == "daily":
+        if open_time and close_time:
+            start_dt = datetime.combine(local_start.date(), open_time, tzinfo=schedule_tz)
+            end_dt = datetime.combine(local_start.date(), close_time, tzinfo=schedule_tz)
+            return local_start >= start_dt and local_end <= end_dt
+        return True
+
+    rules = db.execute(
+        """
+        SELECT rule_type, weekday, month_day, nth, start_time, end_time
+        FROM service_operating_rules
+        WHERE schedule_id = :schedule_id
+        """,
+        {"schedule_id": schedule_map.get("id")},
+    ).fetchall()
+
+    for rule in rules:
+        rule_type_value = rule[0]
+        rule_weekday = rule[1]
+        month_day = rule[2]
+        nth = rule[3]
+        start_time = rule[4]
+        end_time = rule[5]
+
+        is_match = False
+        if rule_type == "weekly" and rule_type_value == "weekly":
+            is_match = rule_weekday == weekday
+        elif rule_type == "monthly" and rule_type_value == "monthly_day":
+            is_match = month_day == local_start.date().day
+        elif rule_type == "monthly" and rule_type_value == "monthly_nth_weekday":
+            if rule_weekday is not None and nth is not None:
+                is_match = _is_nth_weekday_in_month(local_start.date(), rule_weekday, nth)
+
+        if not is_match:
+            continue
+
+        if start_time and end_time:
+            start_dt = datetime.combine(local_start.date(), start_time, tzinfo=schedule_tz)
+            end_dt = datetime.combine(local_start.date(), end_time, tzinfo=schedule_tz)
+            return local_start >= start_dt and local_end <= end_dt
+        if open_time and close_time:
+            start_dt = datetime.combine(local_start.date(), open_time, tzinfo=schedule_tz)
+            end_dt = datetime.combine(local_start.date(), close_time, tzinfo=schedule_tz)
+            return local_start >= start_dt and local_end <= end_dt
+        return True
+
+    return False
 
 def _get_customer_id(db: Session, user_id: str) -> str | None:
     record = db.execute(
@@ -134,6 +251,9 @@ async def create_booking(
     max_booking_cutoff = now_local + timedelta(days=settings.MAX_BOOKING_DAYS)
     if local_start > max_booking_cutoff:
         raise HTTPException(status_code=400, detail="Booking exceeds maximum window")
+
+    if not _service_allows_booking(db, booking.service_id, local_start, local_end, schedule_tz):
+        raise HTTPException(status_code=400, detail="Service is not available at this time")
 
     work_blocks = db.execute(
         """

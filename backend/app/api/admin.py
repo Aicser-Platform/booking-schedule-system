@@ -182,7 +182,7 @@ def list_services(
     result = db.execute(
         text(
             """
-            SELECT id, name, description, image_url, is_active, duration_minutes, price, deposit_amount,
+            SELECT id, name, description, image_url, image_urls, is_active, duration_minutes, price, deposit_amount,
                    buffer_minutes, max_capacity, is_archived, archived_at, paused_from, paused_until
             FROM services
             WHERE is_archived = FALSE

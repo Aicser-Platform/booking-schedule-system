@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/dashboard/empty-state";
+import { ImageCarousel } from "@/components/ui/image-carousel";
 import { Plus, Edit } from "lucide-react";
 import DeleteServiceButton from "./DeleteServiceButton";
 
@@ -26,6 +27,7 @@ type ServiceRow = {
   name: string;
   description?: string | null;
   image_url?: string | null;
+  image_urls?: string[] | null;
   is_active: boolean;
   duration_minutes: number;
   price: number;
@@ -95,15 +97,24 @@ export default async function AdminServicesPage() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {services.map((service) => (
             <Card key={service.id} className="glass-card">
-              {service.image_url && (
-                <div className="overflow-hidden rounded-t-xl">
-                  <img
-                    src={service.image_url}
-                    alt={service.name}
-                    className="h-36 w-full object-cover"
-                  />
-                </div>
-              )}
+              {(() => {
+                const images = service.image_urls?.length
+                  ? service.image_urls
+                  : service.image_url
+                    ? [service.image_url]
+                    : [];
+
+                return images.length > 0 ? (
+                  <div className="overflow-hidden rounded-t-xl">
+                    <ImageCarousel
+                      images={images}
+                      alt={service.name}
+                      className="h-36 w-full"
+                      imageClassName="h-36 w-full object-cover"
+                    />
+                  </div>
+                ) : null;
+              })()}
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">

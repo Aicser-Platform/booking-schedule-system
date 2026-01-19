@@ -14,6 +14,7 @@ class ServiceBase(BaseModel):
     inclusions: Optional[str] = None
     prep_notes: Optional[str] = None
     image_url: Optional[str] = None
+    image_urls: Optional[List[str]] = None
     duration_minutes: int = 60
     price: Decimal
     deposit_amount: Decimal = Decimal("0")
@@ -34,6 +35,7 @@ class ServiceUpdate(BaseModel):
     inclusions: Optional[str] = None
     prep_notes: Optional[str] = None
     image_url: Optional[str] = None
+    image_urls: Optional[List[str]] = None
     duration_minutes: Optional[int] = None
     price: Optional[Decimal] = None
     deposit_amount: Optional[Decimal] = None
@@ -51,6 +53,67 @@ class ServiceResponse(ServiceBase):
     archived_at: Optional[datetime] = None
     paused_from: Optional[datetime] = None
     paused_until: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+# Service Operating Schedule Schemas
+class ServiceOperatingScheduleBase(BaseModel):
+    timezone: str
+    rule_type: str  # daily | weekly | monthly
+    open_time: Optional[time] = None
+    close_time: Optional[time] = None
+    effective_from: Optional[date] = None
+    effective_to: Optional[date] = None
+    is_active: bool = True
+
+class ServiceOperatingScheduleCreate(ServiceOperatingScheduleBase):
+    pass
+
+class ServiceOperatingScheduleUpdate(BaseModel):
+    timezone: Optional[str] = None
+    rule_type: Optional[str] = None
+    open_time: Optional[time] = None
+    close_time: Optional[time] = None
+    effective_from: Optional[date] = None
+    effective_to: Optional[date] = None
+    is_active: Optional[bool] = None
+
+class ServiceOperatingScheduleResponse(ServiceOperatingScheduleBase):
+    id: str
+    service_id: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ServiceOperatingRuleCreate(BaseModel):
+    rule_type: str  # weekly | monthly_day | monthly_nth_weekday
+    weekday: Optional[int] = None
+    month_day: Optional[int] = None
+    nth: Optional[int] = None
+    start_time: Optional[time] = None
+    end_time: Optional[time] = None
+
+class ServiceOperatingRuleResponse(ServiceOperatingRuleCreate):
+    id: str
+    schedule_id: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ServiceOperatingExceptionCreate(BaseModel):
+    date: date
+    is_open: bool = False
+    start_time: Optional[time] = None
+    end_time: Optional[time] = None
+    reason: Optional[str] = None
+
+class ServiceOperatingExceptionResponse(ServiceOperatingExceptionCreate):
+    id: str
+    service_id: str
+    created_at: datetime
 
     class Config:
         from_attributes = True

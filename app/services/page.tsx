@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ImageCarousel } from "@/components/ui/image-carousel";
 import { Clock, DollarSign } from "lucide-react";
 
 type ServiceRow = {
@@ -20,6 +21,7 @@ type ServiceRow = {
   tags?: string[] | null;
   description?: string | null;
   image_url?: string | null;
+  image_urls?: string[] | null;
   duration_minutes: number;
   price: number;
   deposit_amount: number;
@@ -210,15 +212,24 @@ export default async function ServicesPage({
                 className="group flex h-full flex-col overflow-hidden border border-white/60 bg-white/80 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
               >
                 <div className="relative">
-                  {service.image_url ? (
-                    <img
-                      src={service.image_url}
-                      alt={service.name}
-                      className="h-44 w-full object-cover"
-                    />
-                  ) : (
-                    <div className="h-44 w-full bg-gradient-to-br from-indigo-100 to-sky-100" />
-                  )}
+                  {(() => {
+                    const images = service.image_urls?.length
+                      ? service.image_urls
+                      : service.image_url
+                        ? [service.image_url]
+                        : [];
+
+                    return images.length > 0 ? (
+                      <ImageCarousel
+                        images={images}
+                        alt={service.name}
+                        className="h-44 w-full"
+                        imageClassName="h-44 w-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-44 w-full bg-gradient-to-br from-indigo-100 to-sky-100" />
+                    );
+                  })()}
                   {service.category && (
                     <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-slate-600 shadow">
                       {service.category}

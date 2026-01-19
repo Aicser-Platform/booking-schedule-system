@@ -5,6 +5,7 @@ import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import ServiceForm from "../../ServiceForm";
 import ServiceStaffAssignments from "../../ServiceStaffAssignments";
+import ServiceOperatingSchedule from "../../ServiceOperatingSchedule";
 
 type MeUser = {
   id: string;
@@ -143,6 +144,9 @@ export default async function AdminServiceEditPage({ params }: RouteContext) {
           staffOptions={staff}
           assignedStaff={assignedStaff}
         />
+      </div>
+      <div className="mt-6">
+        <ServiceOperatingSchedule serviceId={service.id} />
       </div>
     </DashboardLayout>
   );

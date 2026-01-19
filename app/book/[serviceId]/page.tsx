@@ -1,6 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { BookingForm } from "@/components/booking/booking-form";
+import { ImageCarousel } from "@/components/ui/image-carousel";
 
 type MeUser = {
   id: string;
@@ -19,6 +20,7 @@ type ServiceRow = {
   inclusions?: string | null;
   prep_notes?: string | null;
   image_url?: string | null;
+  image_urls?: string[] | null;
   duration_minutes: number;
   price: number;
   deposit_amount: number;
@@ -109,15 +111,24 @@ export default async function BookServicePage({
         <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[1.6fr_1fr]">
           <div>
             <div className="mb-8 overflow-hidden rounded-3xl border border-white/60 bg-white/70 shadow-sm">
-              {service.image_url ? (
-                <img
-                  src={service.image_url}
-                  alt={service.name}
-                  className="h-72 w-full object-cover"
-                />
-              ) : (
-                <div className="h-72 w-full bg-gradient-to-br from-indigo-100 to-sky-100" />
-              )}
+              {(() => {
+                const images = service.image_urls?.length
+                  ? service.image_urls
+                  : service.image_url
+                    ? [service.image_url]
+                    : [];
+
+                return images.length > 0 ? (
+                  <ImageCarousel
+                    images={images}
+                    alt={service.name}
+                    className="h-72 w-full"
+                    imageClassName="h-72 w-full object-cover"
+                  />
+                ) : (
+                  <div className="h-72 w-full bg-gradient-to-br from-indigo-100 to-sky-100" />
+                );
+              })()}
               <div className="p-6">
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-500">
                   Service Details
