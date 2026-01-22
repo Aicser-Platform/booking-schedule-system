@@ -147,28 +147,32 @@ export default async function StaffDashboard() {
           </Button>
         </div>
 
-        <TabsContent value="today" className="space-y-4">
+        <TabsContent value="today" className="space-y-5">
           {todayBookings.length > 0 ? (
             todayBookings.map((booking) => (
-              <Card key={booking.id} className="glass-card">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle>
+              <Card
+                key={booking.id}
+                className="border border-border bg-card shadow-md transition-shadow hover:shadow-lg"
+              >
+                <CardHeader className="pb-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-xl font-bold">
                         {booking.services?.name || "Service"}
                       </CardTitle>
-                      <CardDescription>
+                      <CardDescription className="mt-1.5 text-sm">
                         {format(new Date(booking.start_time_utc), "h:mm a")}
                       </CardDescription>
                     </div>
 
                     <Badge
+                      className="shrink-0"
                       variant={
                         booking.status === "confirmed"
                           ? "default"
                           : booking.status === "cancelled"
-                          ? "destructive"
-                          : "secondary"
+                            ? "destructive"
+                            : "secondary"
                       }
                     >
                       {booking.status}
@@ -176,7 +180,7 @@ export default async function StaffDashboard() {
                   </div>
                 </CardHeader>
 
-                <CardContent>
+                <CardContent className="pt-2">
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
                       <Users className="size-4 text-muted-foreground" />
@@ -207,9 +211,15 @@ export default async function StaffDashboard() {
 
                   {/* UI-only until you add endpoints/actions */}
                   {booking.status === "confirmed" && (
-                    <div className="mt-4 flex gap-2">
-                      <Button size="sm">Mark Completed</Button>
-                      <Button size="sm" variant="outline">
+                    <div className="mt-5 flex gap-3">
+                      <Button size="sm" className="flex-1 sm:flex-none">
+                        Mark Completed
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 sm:flex-none"
+                      >
                         Mark No-Show
                       </Button>
                     </div>
@@ -226,25 +236,29 @@ export default async function StaffDashboard() {
           )}
         </TabsContent>
 
-        <TabsContent value="upcoming" className="space-y-4">
+        <TabsContent value="upcoming" className="space-y-5">
           {upcomingBookings.length > 0 ? (
             upcomingBookings.map((booking) => (
-              <Card key={booking.id} className="glass-card">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle>
+              <Card
+                key={booking.id}
+                className="border border-border bg-card shadow-md transition-shadow hover:shadow-lg"
+              >
+                <CardHeader className="pb-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-xl font-bold">
                         {booking.services?.name || "Service"}
                       </CardTitle>
-                      <CardDescription>
+                      <CardDescription className="mt-1.5 text-sm">
                         {format(
                           new Date(booking.start_time_utc),
-                          "MMMM d, yyyy 'at' h:mm a"
+                          "MMMM d, yyyy 'at' h:mm a",
                         )}
                       </CardDescription>
                     </div>
 
                     <Badge
+                      className="shrink-0"
                       variant={
                         booking.status === "confirmed" ? "default" : "secondary"
                       }
@@ -254,15 +268,17 @@ export default async function StaffDashboard() {
                   </div>
                 </CardHeader>
 
-                <CardContent>
-                  <div className="space-y-2 text-sm">
+                <CardContent className="pt-2">
+                  <div className="space-y-3 text-sm">
                     <div className="flex items-center gap-2">
-                      <Users className="size-4 text-muted-foreground" />
-                      <span>{booking.customers?.full_name || "Customer"}</span>
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">
+                        {booking.customers?.full_name || "Customer"}
+                      </span>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Clock className="size-4 text-muted-foreground" />
+                      <Clock className="h-4 w-4 text-muted-foreground" />
                       <span>
                         {booking.services?.duration_minutes || 0} minutes
                       </span>

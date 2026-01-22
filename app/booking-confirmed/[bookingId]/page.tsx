@@ -41,7 +41,7 @@ async function getMe(): Promise<MeUser | null> {
 }
 
 async function getBookingConfirmed(
-  bookingId: string
+  bookingId: string,
 ): Promise<BookingConfirmedRow | null> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   const cookie = (await headers()).get("cookie") ?? "";
@@ -79,22 +79,24 @@ export default async function BookingConfirmedPage({
   const staffName = booking.staff?.full_name || "Staff Member";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-background">
       <div className="container py-12">
         <div className="mx-auto max-w-2xl">
-          <Card>
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-                <CheckCircle2 className="h-8 w-8 text-green-600" />
+          <Card className="border border-border bg-card shadow-lg">
+            <CardHeader className="text-center pb-6">
+              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-50 border-2 border-green-200">
+                <CheckCircle2 className="h-10 w-10 text-green-600" />
               </div>
-              <CardTitle className="text-3xl">Booking Confirmed!</CardTitle>
-              <p className="text-muted-foreground">
+              <CardTitle className="text-3xl font-bold mb-2">
+                Booking Confirmed!
+              </CardTitle>
+              <p className="text-base text-muted-foreground">
                 Your appointment has been successfully booked
               </p>
             </CardHeader>
 
-            <CardContent className="space-y-6">
-              <div className="space-y-4 rounded-lg border bg-muted/50 p-4">
+            <CardContent className="space-y-6 pt-6">
+              <div className="space-y-4 rounded-lg border border-border bg-muted/30 p-5">
                 <div className="flex items-start gap-3">
                   <User className="mt-0.5 h-5 w-5 text-muted-foreground" />
                   <div>
@@ -111,7 +113,7 @@ export default async function BookingConfirmedPage({
                     <p className="font-medium">
                       {format(
                         new Date(booking.start_time_utc),
-                        "EEEE, MMMM d, yyyy"
+                        "EEEE, MMMM d, yyyy",
                       )}
                     </p>
                     <p className="text-sm text-muted-foreground">
@@ -130,24 +132,35 @@ export default async function BookingConfirmedPage({
                 </div>
               </div>
 
-              <div className="rounded-lg bg-blue-50 p-4 text-sm">
-                <p className="font-medium text-blue-900">What's Next?</p>
-                <ul className="mt-2 space-y-1 text-blue-800">
-                  <li>• You'll receive a confirmation email shortly</li>
-                  <li>• We'll send you a reminder before your appointment</li>
-                  <li>• You can reschedule or cancel from your dashboard</li>
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-5">
+                <p className="font-semibold text-foreground mb-2">
+                  What's Next?
+                </p>
+                <ul className="space-y-1.5 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-0.5">•</span>
+                    <span>You'll receive a confirmation email shortly</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-0.5">•</span>
+                    <span>
+                      We'll send you a reminder before your appointment
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-0.5">•</span>
+                    <span>
+                      You can reschedule or cancel from your dashboard
+                    </span>
+                  </li>
                 </ul>
               </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Button asChild className="flex-1">
+              <div className="flex flex-col gap-3 sm:flex-row pt-2">
+                <Button asChild size="lg" className="flex-1">
                   <Link href="/dashboard">View My Bookings</Link>
                 </Button>
-                <Button
-                  asChild
-                  variant="outline"
-                  className="flex-1 bg-transparent"
-                >
+                <Button asChild size="lg" variant="outline" className="flex-1">
                   <Link href="/services">Book Another</Link>
                 </Button>
               </div>

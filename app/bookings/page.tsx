@@ -75,42 +75,50 @@ export default async function BookingsPage() {
 
   return (
     <DashboardLayout>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">My Bookings</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">
+            My Bookings
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
             View and manage your appointments
           </p>
         </div>
 
-        <Button asChild className="glow-primary-subtle">
+        <Button asChild size="lg" className="w-full sm:w-auto">
           <Link href="/services">Book New Appointment</Link>
         </Button>
       </div>
 
-      <div className="grid gap-6">
+      <div className="grid gap-5">
         {bookings.length > 0 ? (
           bookings.map((booking) => (
-            <Card key={booking.id} className="glass-card">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle>{booking.service_name}</CardTitle>
-                    <CardDescription>
+            <Card
+              key={booking.id}
+              className="border border-border bg-card shadow-md transition-shadow hover:shadow-lg"
+            >
+              <CardHeader className="pb-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-xl font-bold">
+                      {booking.service_name}
+                    </CardTitle>
+                    <CardDescription className="mt-1.5 text-sm">
                       {format(
                         new Date(booking.start_time_utc),
-                        "MMMM d, yyyy 'at' h:mm a"
+                        "MMMM d, yyyy 'at' h:mm a",
                       )}
                     </CardDescription>
                   </div>
 
                   <Badge
+                    className="shrink-0"
                     variant={
                       booking.status === "confirmed"
                         ? "default"
                         : booking.status === "cancelled"
-                        ? "destructive"
-                        : "secondary"
+                          ? "destructive"
+                          : "secondary"
                     }
                   >
                     {booking.status}
@@ -118,36 +126,51 @@ export default async function BookingsPage() {
                 </div>
               </CardHeader>
 
-              <CardContent>
-                <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+              <CardContent className="pt-2">
+                <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
-                    <User className="size-4" />
-                    <span>{booking.staff_name || "Staff Member"}</span>
+                    <User className="h-4 w-4" />
+                    <span className="font-medium">
+                      {booking.staff_name || "Staff Member"}
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <Clock className="size-4" />
+                    <Clock className="h-4 w-4" />
                     <span>{booking.duration_minutes} minutes</span>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <DollarSign className="size-4" />
-                    <span className="font-semibold">${booking.price}</span>
+                    <DollarSign className="h-4 w-4" />
+                    <span className="font-semibold text-foreground">
+                      ${booking.price}
+                    </span>
                     {booking.payment_status && (
-                      <Badge variant="outline">{booking.payment_status}</Badge>
+                      <Badge variant="outline" className="ml-1 text-xs">
+                        {booking.payment_status}
+                      </Badge>
                     )}
                   </div>
                 </div>
 
                 {booking.status === "pending" && (
-                  <div className="mt-4 flex gap-2">
-                    <Button size="sm" variant="outline" asChild>
+                  <div className="mt-5 flex gap-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      asChild
+                      className="flex-1 sm:flex-none"
+                    >
                       <Link href={`/booking/${booking.id}/reschedule`}>
                         Reschedule
                       </Link>
                     </Button>
 
-                    <Button size="sm" variant="outline">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 sm:flex-none"
+                    >
                       Cancel
                     </Button>
                   </div>

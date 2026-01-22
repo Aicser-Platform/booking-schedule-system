@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -118,41 +124,61 @@ export default function ProfileClient({ user }: { user: ProfileUser }) {
   };
 
   return (
-    <div className="space-y-6">
-      <Card className="glass-card">
-        <CardHeader>
-          <CardTitle>Personal Information</CardTitle>
-          <CardDescription>Update your personal details</CardDescription>
+    <div className="space-y-8">
+      <Card className="border border-border bg-card shadow-lg">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold">
+            Personal Information
+          </CardTitle>
+          <CardDescription className="text-sm">
+            Update your personal details
+          </CardDescription>
         </CardHeader>
 
         <CardContent>
-          <form onSubmit={updateProfile} className="space-y-4">
+          <form onSubmit={updateProfile} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" defaultValue={user.email} disabled />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="email" className="text-sm font-medium">
+                Email
+              </Label>
               <Input
-                id="name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                id="email"
+                type="email"
+                defaultValue={user.email}
+                disabled
+                className="bg-muted/50"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="name" className="text-sm font-medium">
+                Full Name
+              </Label>
+              <Input
+                id="name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Enter your full name"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone" className="text-sm font-medium">
+                Phone Number
+              </Label>
               <Input
                 id="phone"
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+                placeholder="+1 (555) 000-0000"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="timezone">Timezone</Label>
+              <Label htmlFor="timezone" className="text-sm font-medium">
+                Timezone
+              </Label>
               <Input
                 id="timezone"
                 placeholder="Asia/Phnom_Penh"
@@ -163,74 +189,95 @@ export default function ProfileClient({ user }: { user: ProfileUser }) {
 
             {profileMessage && (
               <div
-                className={`rounded-md p-3 text-sm ${
+                className={`rounded-lg p-3.5 text-sm font-medium ${
                   profileMessage.type === "success"
-                    ? "bg-emerald-50 text-emerald-700"
-                    : "bg-destructive/10 text-destructive"
+                    ? "border border-green-200 bg-green-50 text-green-800"
+                    : "border border-destructive/20 bg-destructive/10 text-destructive"
                 }`}
               >
                 {profileMessage.text}
               </div>
             )}
 
-            <Button type="submit" disabled={profileSaving}>
+            <Button
+              type="submit"
+              disabled={profileSaving}
+              size="lg"
+              className="w-full sm:w-auto"
+            >
               {profileSaving ? "Saving..." : "Save Changes"}
             </Button>
           </form>
         </CardContent>
       </Card>
 
-      <Card className="glass-card">
-        <CardHeader>
-          <CardTitle>Change Password</CardTitle>
-          <CardDescription>Update your account password</CardDescription>
+      <Card className="border border-border bg-card shadow-lg">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold">Change Password</CardTitle>
+          <CardDescription className="text-sm">
+            Update your account password
+          </CardDescription>
         </CardHeader>
 
         <CardContent>
-          <form onSubmit={changePassword} className="space-y-4">
+          <form onSubmit={changePassword} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="currentPassword">Current Password</Label>
+              <Label htmlFor="currentPassword" className="text-sm font-medium">
+                Current Password
+              </Label>
               <Input
                 id="currentPassword"
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Enter current password"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="newPassword">New Password</Label>
+              <Label htmlFor="newPassword" className="text-sm font-medium">
+                New Password
+              </Label>
               <Input
                 id="newPassword"
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password (min. 6 characters)"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm New Password</Label>
+              <Label htmlFor="confirmPassword" className="text-sm font-medium">
+                Confirm New Password
+              </Label>
               <Input
                 id="confirmPassword"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
               />
             </div>
 
             {passwordMessage && (
               <div
-                className={`rounded-md p-3 text-sm ${
+                className={`rounded-lg p-3.5 text-sm font-medium ${
                   passwordMessage.type === "success"
-                    ? "bg-emerald-50 text-emerald-700"
-                    : "bg-destructive/10 text-destructive"
+                    ? "border border-green-200 bg-green-50 text-green-800"
+                    : "border border-destructive/20 bg-destructive/10 text-destructive"
                 }`}
               >
                 {passwordMessage.text}
               </div>
             )}
 
-            <Button type="submit" disabled={passwordSaving}>
+            <Button
+              type="submit"
+              disabled={passwordSaving}
+              size="lg"
+              className="w-full sm:w-auto"
+            >
               {passwordSaving ? "Updating..." : "Update Password"}
             </Button>
           </form>

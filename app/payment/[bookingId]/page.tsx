@@ -42,7 +42,7 @@ async function getMe(): Promise<MeUser | null> {
 }
 
 async function getBookingForPayment(
-  bookingId: string
+  bookingId: string,
 ): Promise<PaymentBookingRow | null> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   const cookie = (await headers()).get("cookie") ?? "";
@@ -78,7 +78,7 @@ export default async function PaymentPage({
   if (!booking || !booking.services) notFound();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-background">
       <div className="container py-12">
         <div className="mx-auto max-w-2xl">
           <PaymentForm booking={booking} />
