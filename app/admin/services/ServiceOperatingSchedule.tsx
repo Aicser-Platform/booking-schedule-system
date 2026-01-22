@@ -100,6 +100,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
     end_time: "",
     reason: "",
   });
+  const [previewRange, setPreviewRange] = useState(30);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -288,6 +289,165 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
       return `${nthLabel || rule.nth} ${day || "Day"} (monthly)`;
     });
   }, [data.rules]);
+
+  const previewDays = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: scheduleForm.timezone || "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      weekday: "short",
+    });
+    const weekdayMap: Record<string, number> = {
+      Sun: 0,
+      Mon: 1,
+      Tue: 2,
+      Wed: 3,
+      Thu: 4,
+      Fri: 5,
+      Sat: 6,
+    };
+
+    const isNthWeekday = (
+      year: number,
+      month: number,
+      day: number,
+      weekday: number,
+      nth: number,
+    ) => {
+      const firstDay = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+      const offset = (weekday - firstDay + 7) % 7;
+      const firstOccurrence = 1 + offset;
+      const occurrence = Math.floor((day - firstOccurrence) / 7) + 1;
+      if (nth === -1) {
+        const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+        const lastWeekday = new Date(
+          Date.UTC(year, month - 1, lastDay),
+        ).getUTCDay();
+        const lastOffset = (lastWeekday - weekday + 7) % 7;
+        const lastOccurrenceDay = lastDay - lastOffset;
+        return day === lastOccurrenceDay;
+      }
+      return occurrence === nth;
+    };
+
+    const formatHours = (start?: string | null, end?: string | null) => {
+      if (start && end) return `${start} - ${end}`;
+      return scheduleForm.open_time && scheduleForm.close_time
+        ? `${scheduleForm.open_time} - ${scheduleForm.close_time}`
+        : "Open";
+    };
+
+    const rules = data.rules;
+    const exceptions = data.exceptions;
+    const days = [] as Array<{ date: string; label: string; status: string }>;
+
+    for (let i = 0; i < previewRange; i += 1) {
+      const base = new Date();
+      base.setUTCDate(base.getUTCDate() + i);
+      const parts = formatter.formatToParts(base);
+      const year = Number(parts.find((p) => p.type === "year")?.value ?? 0);
+      const month = Number(parts.find((p) => p.type === "month")?.value ?? 0);
+      const day = Number(parts.find((p) => p.type === "day")?.value ?? 0);
+      const weekdayLabel = parts.find((p) => p.type === "weekday")?.value ?? "";
+      const weekday = weekdayMap[weekdayLabel] ?? 0;
+      const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+      const inRange =
+        (!scheduleForm.effective_from ||
+          dateStr >= scheduleForm.effective_from) &&
+        (!scheduleForm.effective_to || dateStr <= scheduleForm.effective_to);
+
+      if (!scheduleForm.is_active || !inRange) {
+        days.push({ date: dateStr, label: weekdayLabel, status: "Closed" });
+        continue;
+      }
+
+      const dayExceptions = exceptions.filter((ex) => ex.date === dateStr);
+      const override = dayExceptions.filter(
+        (ex) => ex.is_open && ex.start_time && ex.end_time,
+      );
+      const closed = dayExceptions.filter((ex) => !ex.is_open);
+      const extraOpen = dayExceptions.filter(
+        (ex) => ex.is_open && !ex.start_time && !ex.end_time,
+      );
+
+      if (override.length > 0) {
+        days.push({
+          date: dateStr,
+          label: weekdayLabel,
+          status: `Open (${override
+            .map((ex) => `${ex.start_time} - ${ex.end_time}`)
+            .join(", ")})`,
+        });
+        continue;
+      }
+
+      if (closed.length > 0) {
+        days.push({ date: dateStr, label: weekdayLabel, status: "Closed" });
+        continue;
+      }
+
+      if (extraOpen.length > 0) {
+        days.push({
+          date: dateStr,
+          label: weekdayLabel,
+          status: `Open (${formatHours()})`,
+        });
+        continue;
+      }
+
+      let isOpen = false;
+      let hours = "";
+
+      if (scheduleForm.rule_type === "daily") {
+        isOpen = true;
+        hours = formatHours();
+      } else if (scheduleForm.rule_type === "weekly") {
+        const matches = rules.filter(
+          (rule) => rule.rule_type === "weekly" && rule.weekday === weekday,
+        );
+        if (matches.length > 0) {
+          isOpen = true;
+          hours = formatHours(matches[0].start_time, matches[0].end_time);
+        }
+      } else if (scheduleForm.rule_type === "monthly") {
+        const matches = rules.filter((rule) => {
+          if (rule.rule_type === "monthly_day") {
+            return rule.month_day === day;
+          }
+          if (rule.rule_type === "monthly_nth_weekday") {
+            if (rule.weekday == null || rule.nth == null) return false;
+            return isNthWeekday(year, month, day, rule.weekday, rule.nth);
+          }
+          return false;
+        });
+        if (matches.length > 0) {
+          isOpen = true;
+          hours = formatHours(matches[0].start_time, matches[0].end_time);
+        }
+      }
+
+      days.push({
+        date: dateStr,
+        label: weekdayLabel,
+        status: isOpen ? `Open (${hours})` : "Closed",
+      });
+    }
+
+    return days;
+  }, [
+    data.exceptions,
+    data.rules,
+    previewRange,
+    scheduleForm.effective_from,
+    scheduleForm.effective_to,
+    scheduleForm.is_active,
+    scheduleForm.open_time,
+    scheduleForm.close_time,
+    scheduleForm.rule_type,
+    scheduleForm.timezone,
+  ]);
 
   return (
     <Card className="glass-card">
@@ -672,6 +832,43 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
               No exceptions added.
             </p>
           )}
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h4 className="text-sm font-semibold">Preview (next days)</h4>
+            <select
+              value={previewRange}
+              onChange={(event) => setPreviewRange(Number(event.target.value))}
+              className="rounded-xl border border-border bg-background px-3 py-2 text-sm"
+            >
+              <option value={30}>Next 30 days</option>
+              <option value={60}>Next 60 days</option>
+              <option value={90}>Next 90 days</option>
+            </select>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {previewDays.map((day) => (
+              <div
+                key={day.date}
+                className="rounded-xl border border-border bg-white/70 px-3 py-2 text-sm"
+              >
+                <p className="font-semibold">
+                  {day.date} • {day.label}
+                </p>
+                <p
+                  className={`text-xs ${
+                    day.status.startsWith("Open")
+                      ? "text-emerald-600"
+                      : "text-rose-500"
+                  }`}
+                >
+                  {day.status}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
 
         {error && (

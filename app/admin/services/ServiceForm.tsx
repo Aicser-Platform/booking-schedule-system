@@ -410,13 +410,31 @@ export default function ServiceForm({
     mode === "create" ? "Design New Offering" : "Update Service Protocol";
   const submitLabel =
     mode === "create" ? "Initialize Service" : "Commit Update";
+  const labelClass =
+    "px-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground";
+  const inputClass =
+    "w-full rounded-2xl border-2 border-transparent bg-muted px-5 py-4 font-bold text-foreground outline-none transition-all focus:border-primary focus:bg-background";
+  const textareaClass =
+    "w-full resize-none rounded-2xl border-2 border-transparent bg-muted px-5 py-4 font-bold text-foreground outline-none transition-all focus:border-primary focus:bg-background";
+  const inputCompactClass =
+    "mt-2 w-full rounded-2xl border border-border bg-background px-4 py-2 text-sm text-foreground";
+  const pillButtonClass =
+    "rounded-2xl border-2 border-transparent bg-muted px-4 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground transition-all hover:border-border hover:text-foreground";
+  const primaryPillClass =
+    "rounded-2xl border-2 border-primary bg-primary px-4 py-2 text-[10px] font-black uppercase tracking-widest text-primary-foreground shadow-lg shadow-primary/20";
+  const sectionCardClass = "rounded-[2rem] border border-border bg-card/60 p-6";
+  const summaryCardClass =
+    "rounded-2xl border border-border bg-card px-4 py-3 shadow-sm";
+  const surfaceCardClass = "rounded-2xl border border-border bg-card shadow-sm";
+  const ghostDangerClass =
+    "rounded-2xl border-2 border-transparent bg-destructive/10 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-destructive transition-all hover:border-destructive/30";
 
   return (
-    <div className="overflow-hidden rounded-[2.5rem] bg-white shadow-2xl">
-      <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 px-8 py-6">
+    <div className="overflow-hidden rounded-[2.5rem] border border-border bg-card shadow-2xl">
+      <div className="flex items-center justify-between border-b border-border bg-muted/40 px-8 py-6">
         <div>
-          <h3 className="text-xl font-bold text-slate-900">{headerTitle}</h3>
-          <p className="text-xs font-medium text-slate-500">
+          <h3 className="text-xl font-bold text-foreground">{headerTitle}</h3>
+          <p className="text-xs font-medium text-muted-foreground">
             Configure precision scheduling and settlement parameters.
           </p>
         </div>
@@ -424,17 +442,13 @@ export default function ServiceForm({
 
       <form onSubmit={handleSubmit} className="space-y-8 p-10">
         <div className="space-y-4">
-          <label className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-            Service Visual Identity
-          </label>
+          <label className={labelClass}>Service Visual Identity</label>
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
               onClick={() => setImageMode("upload")}
               className={`rounded-2xl border-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-                imageMode === "upload"
-                  ? "border-indigo-600 bg-indigo-600 text-white shadow-xl shadow-indigo-100"
-                  : "border-transparent bg-slate-50 text-slate-400 hover:border-slate-200"
+                imageMode === "upload" ? primaryPillClass : pillButtonClass
               }`}
             >
               Upload Asset
@@ -443,9 +457,7 @@ export default function ServiceForm({
               type="button"
               onClick={() => setImageMode("url")}
               className={`rounded-2xl border-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-                imageMode === "url"
-                  ? "border-indigo-600 bg-indigo-600 text-white shadow-xl shadow-indigo-100"
-                  : "border-transparent bg-slate-50 text-slate-400 hover:border-slate-200"
+                imageMode === "url" ? primaryPillClass : pillButtonClass
               }`}
             >
               Image URL
@@ -460,7 +472,7 @@ export default function ServiceForm({
                 event.preventDefault();
                 void handleFilesSelect(event.dataTransfer.files);
               }}
-              className="group relative flex h-48 w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-[2rem] border-2 border-dashed border-slate-200 bg-slate-50 transition-all hover:border-indigo-400 hover:bg-indigo-50/30"
+              className="group relative flex h-48 w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-[2rem] border-2 border-dashed border-border/70 bg-muted/40 transition-all hover:border-primary/60 hover:bg-muted/60"
               role="button"
               tabIndex={0}
             >
@@ -471,25 +483,25 @@ export default function ServiceForm({
                     alt="Service preview"
                     className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                  <div className="absolute inset-0 flex items-center justify-center bg-background/60 text-foreground opacity-0 transition-opacity group-hover:opacity-100">
                     <Camera size={32} />
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="mb-3 rounded-2xl bg-white p-4 text-slate-400 shadow-sm transition-colors group-hover:text-indigo-600">
+                  <div className="mb-3 rounded-2xl bg-card p-4 text-muted-foreground shadow-sm transition-colors group-hover:text-primary">
                     <ImageIcon size={32} />
                   </div>
-                  <p className="text-xs font-bold text-slate-500 transition-colors group-hover:text-indigo-600">
+                  <p className="text-xs font-bold text-muted-foreground transition-colors group-hover:text-primary">
                     Upload Presentation Asset
                   </p>
-                  <p className="mt-1 text-[9px] uppercase tracking-widest text-slate-400">
+                  <p className="mt-1 text-[9px] uppercase tracking-widest text-muted-foreground">
                     JPG, PNG, WEBP recommended
                   </p>
                 </>
               )}
               {isUploading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-white/70 text-xs font-semibold text-slate-600">
+                <div className="absolute inset-0 flex items-center justify-center bg-background/70 text-xs font-semibold text-muted-foreground">
                   Uploading...
                 </div>
               )}
@@ -507,10 +519,7 @@ export default function ServiceForm({
 
           {imageMode === "url" && (
             <div className="space-y-2">
-              <label
-                htmlFor="service-image-url"
-                className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400"
-              >
+              <label htmlFor="service-image-url" className={labelClass}>
                 Image URL
               </label>
               <div className="flex flex-wrap gap-3">
@@ -520,12 +529,12 @@ export default function ServiceForm({
                   value={imageUrlInput}
                   onChange={(event) => setImageUrlInput(event.target.value)}
                   placeholder="https://..."
-                  className="min-w-[240px] flex-1 rounded-2xl border-2 border-transparent bg-slate-50 px-5 py-4 font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:bg-white"
+                  className="min-w-[240px] flex-1 rounded-2xl border-2 border-transparent bg-muted px-5 py-4 font-bold text-foreground outline-none transition-all focus:border-primary focus:bg-background"
                 />
                 <button
                   type="button"
                   onClick={addImageFromInput}
-                  className="rounded-2xl bg-indigo-600 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-200 transition-all hover:bg-indigo-700"
+                  className="rounded-2xl bg-primary px-6 py-3 text-[10px] font-black uppercase tracking-widest text-primary-foreground shadow-lg shadow-primary/30 transition-all hover:bg-primary/90"
                 >
                   Add Image
                 </button>
@@ -534,7 +543,7 @@ export default function ServiceForm({
           )}
 
           {uploadError && (
-            <p className="text-sm font-semibold text-rose-600" role="alert">
+            <p className="text-sm font-semibold text-destructive" role="alert">
               {uploadError}
             </p>
           )}
@@ -544,7 +553,7 @@ export default function ServiceForm({
               <button
                 type="button"
                 onClick={() => setImageMode("upload")}
-                className="rounded-2xl border-2 border-transparent bg-slate-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 transition-all hover:border-slate-200"
+                className={pillButtonClass}
               >
                 Replace Image
               </button>
@@ -554,7 +563,7 @@ export default function ServiceForm({
                   updateImages([]);
                   setImageMode("upload");
                 }}
-                className="rounded-2xl border-2 border-transparent bg-rose-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-rose-600 transition-all hover:border-rose-200"
+                className={ghostDangerClass}
               >
                 Remove Image
               </button>
@@ -566,7 +575,7 @@ export default function ServiceForm({
               {values.image_urls.map((url, index) => (
                 <div
                   key={`${url}-${index}`}
-                  className="group relative overflow-hidden rounded-2xl border border-slate-100"
+                  className="group relative overflow-hidden rounded-2xl border border-border"
                 >
                   <img
                     src={url}
@@ -576,7 +585,7 @@ export default function ServiceForm({
                   <button
                     type="button"
                     onClick={() => removeImageAt(index)}
-                    className="absolute right-3 top-3 rounded-full bg-white/90 p-2 text-slate-500 shadow transition hover:text-rose-600"
+                    className="absolute right-3 top-3 rounded-full bg-card/90 p-2 text-muted-foreground shadow transition hover:text-destructive"
                     aria-label="Remove image"
                   >
                     <X size={14} />
@@ -589,10 +598,7 @@ export default function ServiceForm({
 
         <div className="grid gap-8 md:grid-cols-2">
           <div className="space-y-2">
-            <label
-              htmlFor="service-name"
-              className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400"
-            >
+            <label htmlFor="service-name" className={labelClass}>
               Institutional Label
             </label>
             <input
@@ -602,15 +608,12 @@ export default function ServiceForm({
               value={values.name}
               onChange={(event) => handleChange("name", event.target.value)}
               placeholder="e.g. Executive Checkup"
-              className="w-full rounded-2xl border-2 border-transparent bg-slate-50 px-5 py-4 font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:bg-white"
+              className={inputClass}
             />
           </div>
 
           <div className="space-y-2">
-            <label
-              htmlFor="service-category"
-              className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400"
-            >
+            <label htmlFor="service-category" className={labelClass}>
               Classification
             </label>
             <input
@@ -619,15 +622,12 @@ export default function ServiceForm({
               value={values.category}
               onChange={(event) => handleChange("category", event.target.value)}
               placeholder="e.g. Consulting"
-              className="w-full rounded-2xl border-2 border-transparent bg-slate-50 px-5 py-4 font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:bg-white"
+              className={inputClass}
             />
           </div>
 
           <div className="space-y-2">
-            <label
-              htmlFor="service-public-name"
-              className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400"
-            >
+            <label htmlFor="service-public-name" className={labelClass}>
               Public Name
             </label>
             <input
@@ -638,15 +638,12 @@ export default function ServiceForm({
                 handleChange("public_name", event.target.value)
               }
               placeholder="Name shown to customers"
-              className="w-full rounded-2xl border-2 border-transparent bg-slate-50 px-5 py-4 font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:bg-white"
+              className={inputClass}
             />
           </div>
 
           <div className="space-y-2">
-            <label
-              htmlFor="service-internal-name"
-              className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400"
-            >
+            <label htmlFor="service-internal-name" className={labelClass}>
               Internal Name
             </label>
             <input
@@ -657,16 +654,13 @@ export default function ServiceForm({
                 handleChange("internal_name", event.target.value)
               }
               placeholder="Internal reference"
-              className="w-full rounded-2xl border-2 border-transparent bg-slate-50 px-5 py-4 font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:bg-white"
+              className={inputClass}
             />
           </div>
         </div>
 
         <div className="space-y-2">
-          <label
-            htmlFor="service-tags"
-            className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400"
-          >
+          <label htmlFor="service-tags" className={labelClass}>
             Tags
           </label>
           <input
@@ -675,31 +669,26 @@ export default function ServiceForm({
             value={values.tags}
             onChange={(event) => handleChange("tags", event.target.value)}
             placeholder="comma-separated tags"
-            className="w-full rounded-2xl border-2 border-transparent bg-slate-50 px-5 py-4 font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:bg-white"
+            className={inputClass}
           />
         </div>
 
         <div className="space-y-2">
-          <label className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-            Service Specifications
-          </label>
+          <label className={labelClass}>Service Specifications</label>
           <textarea
             rows={3}
             value={values.description}
             onChange={(event) =>
               handleChange("description", event.target.value)
             }
-            className="w-full resize-none rounded-2xl border-2 border-transparent bg-slate-50 px-5 py-4 font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:bg-white"
+            className={textareaClass}
             placeholder="Detailed description of the service delivery..."
           />
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-2">
-            <label
-              htmlFor="service-inclusions"
-              className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400"
-            >
+            <label htmlFor="service-inclusions" className={labelClass}>
               Inclusions
             </label>
             <textarea
@@ -709,16 +698,13 @@ export default function ServiceForm({
               onChange={(event) =>
                 handleChange("inclusions", event.target.value)
               }
-              className="w-full resize-none rounded-2xl border-2 border-transparent bg-slate-50 px-5 py-4 font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:bg-white"
+              className={textareaClass}
               placeholder="What is included"
             />
           </div>
 
           <div className="space-y-2">
-            <label
-              htmlFor="service-prep-notes"
-              className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400"
-            >
+            <label htmlFor="service-prep-notes" className={labelClass}>
               Prep Notes
             </label>
             <textarea
@@ -728,7 +714,7 @@ export default function ServiceForm({
               onChange={(event) =>
                 handleChange("prep_notes", event.target.value)
               }
-              className="w-full resize-none rounded-2xl border-2 border-transparent bg-slate-50 px-5 py-4 font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:bg-white"
+              className={textareaClass}
               placeholder="Preparation notes for customers"
             />
           </div>
@@ -736,10 +722,7 @@ export default function ServiceForm({
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-2">
-            <label
-              htmlFor="service-price"
-              className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400"
-            >
+            <label htmlFor="service-price" className={labelClass}>
               Settlement ($)
             </label>
             <input
@@ -751,15 +734,12 @@ export default function ServiceForm({
               onChange={(event) =>
                 handleChange("price", Number(event.target.value))
               }
-              className="w-full rounded-2xl border-2 border-transparent bg-slate-50 px-5 py-4 font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:bg-white"
+              className={inputClass}
             />
           </div>
 
           <div className="space-y-2">
-            <label
-              htmlFor="service-deposit"
-              className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400"
-            >
+            <label htmlFor="service-deposit" className={labelClass}>
               Deposit ($)
             </label>
             <input
@@ -771,15 +751,12 @@ export default function ServiceForm({
               onChange={(event) =>
                 handleChange("deposit_amount", Number(event.target.value))
               }
-              className="w-full rounded-2xl border-2 border-transparent bg-slate-50 px-5 py-4 font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:bg-white"
+              className={inputClass}
             />
           </div>
 
           <div className="space-y-2">
-            <label
-              htmlFor="service-duration"
-              className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400"
-            >
+            <label htmlFor="service-duration" className={labelClass}>
               Active Mins
             </label>
             <input
@@ -790,15 +767,12 @@ export default function ServiceForm({
               onChange={(event) =>
                 handleChange("duration_minutes", Number(event.target.value))
               }
-              className="w-full rounded-2xl border-2 border-transparent bg-slate-50 px-5 py-4 font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:bg-white"
+              className={inputClass}
             />
           </div>
 
           <div className="space-y-2">
-            <label
-              htmlFor="service-buffer"
-              className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400"
-            >
+            <label htmlFor="service-buffer" className={labelClass}>
               Sync Buffer
             </label>
             <input
@@ -809,15 +783,12 @@ export default function ServiceForm({
               onChange={(event) =>
                 handleChange("buffer_minutes", Number(event.target.value))
               }
-              className="w-full rounded-2xl border-2 border-transparent bg-slate-50 px-5 py-4 font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:bg-white"
+              className={inputClass}
             />
           </div>
 
           <div className="space-y-2">
-            <label
-              htmlFor="service-capacity"
-              className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400"
-            >
+            <label htmlFor="service-capacity" className={labelClass}>
               Slot Capacity
             </label>
             <input
@@ -828,15 +799,17 @@ export default function ServiceForm({
               onChange={(event) =>
                 handleChange("max_capacity", Number(event.target.value))
               }
-              className="w-full rounded-2xl border-2 border-transparent bg-slate-50 px-5 py-4 font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:bg-white"
+              className={inputClass}
             />
           </div>
         </div>
 
-        <div className="flex items-center justify-between rounded-2xl border border-slate-100 px-5 py-4">
+        <div className="flex items-center justify-between rounded-2xl border border-border px-5 py-4">
           <div>
-            <p className="text-sm font-semibold text-slate-900">Active</p>
-            <p className="text-xs text-slate-500">Toggle service visibility</p>
+            <p className="text-sm font-semibold text-foreground">Active</p>
+            <p className="text-xs text-muted-foreground">
+              Toggle service visibility
+            </p>
           </div>
           <Switch
             checked={values.is_active}
@@ -845,13 +818,13 @@ export default function ServiceForm({
         </div>
 
         {mode === "create" && (
-          <div className="rounded-[2rem] border border-slate-100 bg-slate-50/70 p-6">
+          <div className={sectionCardClass}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h4 className="text-lg font-bold text-slate-900">
+                <h4 className="text-lg font-bold text-foreground">
                   Service Operating Schedule
                 </h4>
-                <p className="text-xs font-medium text-slate-500">
+                <p className="text-xs font-medium text-muted-foreground">
                   Define when this service is open before saving.
                 </p>
               </div>
@@ -865,7 +838,7 @@ export default function ServiceForm({
               <div className="mt-6 space-y-6">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                    <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                       Timezone
                     </label>
                     <input
@@ -877,11 +850,11 @@ export default function ServiceForm({
                         }))
                       }
                       placeholder="e.g. UTC, Asia/Singapore"
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
+                      className={inputCompactClass}
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                    <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                       Rule Type
                     </label>
                     <select
@@ -893,7 +866,7 @@ export default function ServiceForm({
                             .value as OperatingScheduleDraft["rule_type"],
                         }))
                       }
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
+                      className={inputCompactClass}
                     >
                       <option value="daily">Daily</option>
                       <option value="weekly">Weekly</option>
@@ -901,7 +874,7 @@ export default function ServiceForm({
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                    <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                       Open Time
                     </label>
                     <input
@@ -913,11 +886,11 @@ export default function ServiceForm({
                           open_time: event.target.value,
                         }))
                       }
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
+                      className={inputCompactClass}
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                    <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                       Close Time
                     </label>
                     <input
@@ -929,11 +902,11 @@ export default function ServiceForm({
                           close_time: event.target.value,
                         }))
                       }
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
+                      className={inputCompactClass}
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                    <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                       Effective From
                     </label>
                     <input
@@ -945,11 +918,11 @@ export default function ServiceForm({
                           effective_from: event.target.value,
                         }))
                       }
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
+                      className={inputCompactClass}
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                    <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                       Effective To
                     </label>
                     <input
@@ -961,15 +934,15 @@ export default function ServiceForm({
                           effective_to: event.target.value,
                         }))
                       }
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
+                      className={inputCompactClass}
                     />
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3">
+                <div className="flex items-center justify-between rounded-2xl border border-border px-4 py-3">
                   <div>
                     <p className="text-sm font-semibold">Schedule Active</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       Enable or disable this schedule.
                     </p>
                   </div>
@@ -985,7 +958,7 @@ export default function ServiceForm({
                 </div>
 
                 <div className="space-y-3">
-                  <h5 className="text-sm font-semibold text-slate-900">
+                  <h5 className="text-sm font-semibold text-foreground">
                     Rules
                   </h5>
                   <div className="grid gap-3 md:grid-cols-2">
@@ -998,7 +971,7 @@ export default function ServiceForm({
                             .value as OperatingRuleDraft["rule_type"],
                         }))
                       }
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
+                      className="rounded-2xl border border-border bg-background px-4 py-2 text-sm text-foreground"
                     >
                       <option value="weekly">Weekly (weekday)</option>
                       <option value="monthly_day">
@@ -1018,7 +991,7 @@ export default function ServiceForm({
                             weekday: Number(event.target.value),
                           }))
                         }
-                        className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
+                        className="rounded-2xl border border-border bg-background px-4 py-2 text-sm text-foreground"
                       >
                         {weekdays.map((day) => (
                           <option key={day.value} value={day.value}>
@@ -1040,7 +1013,7 @@ export default function ServiceForm({
                             month_day: Number(event.target.value),
                           }))
                         }
-                        className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
+                        className="rounded-2xl border border-border bg-background px-4 py-2 text-sm text-foreground"
                         placeholder="Day of month"
                       />
                     )}
@@ -1055,7 +1028,7 @@ export default function ServiceForm({
                               nth: Number(event.target.value),
                             }))
                           }
-                          className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
+                          className="flex-1 rounded-2xl border border-border bg-background px-4 py-2 text-sm text-foreground"
                         >
                           {nthOptions.map((opt) => (
                             <option key={opt.value} value={opt.value}>
@@ -1071,7 +1044,7 @@ export default function ServiceForm({
                               weekday: Number(event.target.value),
                             }))
                           }
-                          className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
+                          className="flex-1 rounded-2xl border border-border bg-background px-4 py-2 text-sm text-foreground"
                         >
                           {weekdays.map((day) => (
                             <option key={day.value} value={day.value}>
@@ -1091,7 +1064,7 @@ export default function ServiceForm({
                           start_time: event.target.value,
                         }))
                       }
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
+                      className="rounded-2xl border border-border bg-background px-4 py-2 text-sm text-foreground"
                     />
                     <input
                       type="time"
@@ -1102,7 +1075,7 @@ export default function ServiceForm({
                           end_time: event.target.value,
                         }))
                       }
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
+                      className="rounded-2xl border border-border bg-background px-4 py-2 text-sm text-foreground"
                     />
                   </div>
                   <button
@@ -1116,7 +1089,7 @@ export default function ServiceForm({
                         },
                       ]);
                     }}
-                    className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600"
+                    className={pillButtonClass}
                   >
                     Add Rule
                   </button>
@@ -1126,13 +1099,13 @@ export default function ServiceForm({
                       {scheduleRules.map((rule) => (
                         <div
                           key={rule.id}
-                          className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-2 text-sm"
+                          className="flex items-center justify-between rounded-2xl border border-border px-4 py-2 text-sm"
                         >
                           <div>
-                            <p className="font-medium text-slate-900">
+                            <p className="font-medium text-foreground">
                               {rule.rule_type}
                             </p>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-muted-foreground">
                               {rule.start_time || "--"} -{" "}
                               {rule.end_time || "--"}
                             </p>
@@ -1144,7 +1117,7 @@ export default function ServiceForm({
                                 prev.filter((item) => item.id !== rule.id),
                               )
                             }
-                            className="text-xs font-semibold text-rose-600"
+                            className="text-xs font-semibold text-destructive"
                           >
                             Remove
                           </button>
@@ -1152,12 +1125,14 @@ export default function ServiceForm({
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-slate-500">No rules added.</p>
+                    <p className="text-xs text-muted-foreground">
+                      No rules added.
+                    </p>
                   )}
                 </div>
 
                 <div className="space-y-3">
-                  <h5 className="text-sm font-semibold text-slate-900">
+                  <h5 className="text-sm font-semibold text-foreground">
                     Exceptions
                   </h5>
                   <div className="grid gap-3 md:grid-cols-2">
@@ -1170,7 +1145,7 @@ export default function ServiceForm({
                           date: event.target.value,
                         }))
                       }
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
+                      className="rounded-2xl border border-border bg-background px-4 py-2 text-sm text-foreground"
                     />
                     <input
                       type="text"
@@ -1182,7 +1157,7 @@ export default function ServiceForm({
                         }))
                       }
                       placeholder="Reason"
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
+                      className="rounded-2xl border border-border bg-background px-4 py-2 text-sm text-foreground"
                     />
                     <input
                       type="time"
@@ -1193,7 +1168,7 @@ export default function ServiceForm({
                           start_time: event.target.value,
                         }))
                       }
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
+                      className="rounded-2xl border border-border bg-background px-4 py-2 text-sm text-foreground"
                     />
                     <input
                       type="time"
@@ -1204,13 +1179,13 @@ export default function ServiceForm({
                           end_time: event.target.value,
                         }))
                       }
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
+                      className="rounded-2xl border border-border bg-background px-4 py-2 text-sm text-foreground"
                     />
                   </div>
-                  <div className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3">
+                  <div className="flex items-center justify-between rounded-2xl border border-border px-4 py-3">
                     <div>
                       <p className="text-sm font-semibold">Open on this date</p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-muted-foreground">
                         Enable for a special open day.
                       </p>
                     </div>
@@ -1241,7 +1216,7 @@ export default function ServiceForm({
                         reason: "",
                       });
                     }}
-                    className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600"
+                    className={pillButtonClass}
                   >
                     Add Exception
                   </button>
@@ -1251,13 +1226,13 @@ export default function ServiceForm({
                       {scheduleExceptions.map((ex) => (
                         <div
                           key={ex.id}
-                          className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-2 text-sm"
+                          className="flex items-center justify-between rounded-2xl border border-border px-4 py-2 text-sm"
                         >
                           <div>
-                            <p className="font-medium text-slate-900">
+                            <p className="font-medium text-foreground">
                               {ex.date} {ex.is_open ? "Open" : "Closed"}
                             </p>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-muted-foreground">
                               {ex.start_time || "--"} - {ex.end_time || "--"}
                               {ex.reason ? ` • ${ex.reason}` : ""}
                             </p>
@@ -1269,7 +1244,7 @@ export default function ServiceForm({
                                 prev.filter((item) => item.id !== ex.id),
                               )
                             }
-                            className="text-xs font-semibold text-rose-600"
+                            className="text-xs font-semibold text-destructive"
                           >
                             Remove
                           </button>
@@ -1277,7 +1252,7 @@ export default function ServiceForm({
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       No exceptions added.
                     </p>
                   )}
@@ -1288,21 +1263,21 @@ export default function ServiceForm({
         )}
 
         {mode === "create" && (
-          <div className="rounded-[2rem] border border-slate-100 bg-slate-50/70 p-6">
+          <div className={sectionCardClass}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h4 className="text-lg font-bold text-slate-900">
+                <h4 className="text-lg font-bold text-foreground">
                   Service Review
                 </h4>
-                <p className="text-xs font-medium text-slate-500">
+                <p className="text-xs font-medium text-muted-foreground">
                   Confirm the details before creating this service.
                 </p>
               </div>
               <span
                 className={`rounded-full px-3 py-1 text-xs font-semibold ${
                   values.is_active
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-slate-200 text-slate-600"
+                    ? "bg-emerald-500/15 text-emerald-200"
+                    : "bg-muted text-muted-foreground"
                 }`}
               >
                 {values.is_active ? "Active" : "Inactive"}
@@ -1312,38 +1287,38 @@ export default function ServiceForm({
             <div className="mt-5 grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
               <div className="space-y-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                     Primary Label
                   </p>
-                  <p className="text-base font-semibold text-slate-900">
+                  <p className="text-base font-semibold text-foreground">
                     {values.name || "Not set"}
                   </p>
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-muted-foreground">
                     {values.public_name || "Public name not set"}
                   </p>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                       Category
                     </p>
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-sm font-semibold text-foreground">
                       {values.category || "Not set"}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                       Internal Name
                     </p>
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-sm font-semibold text-foreground">
                       {values.internal_name || "Not set"}
                     </p>
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                     Tags
                   </p>
                   {reviewTags.length > 0 ? (
@@ -1351,40 +1326,42 @@ export default function ServiceForm({
                       {reviewTags.map((tag) => (
                         <span
                           key={tag}
-                          className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm"
+                          className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground"
                         >
                           {tag}
                         </span>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-slate-500">No tags added</p>
+                    <p className="text-sm text-muted-foreground">
+                      No tags added
+                    </p>
                   )}
                 </div>
 
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                     Description
                   </p>
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-muted-foreground">
                     {values.description || "No description provided"}
                   </p>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                       Inclusions
                     </p>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-muted-foreground">
                       {values.inclusions || "None"}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                       Prep Notes
                     </p>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-muted-foreground">
                       {values.prep_notes || "None"}
                     </p>
                   </div>
@@ -1395,10 +1372,7 @@ export default function ServiceForm({
                 {values.image_urls.length > 0 ? (
                   <div className="grid gap-3 sm:grid-cols-2">
                     {values.image_urls.map((url, index) => (
-                      <div
-                        key={`${url}-${index}`}
-                        className="overflow-hidden rounded-2xl border border-white bg-white shadow-sm"
-                      >
+                      <div key={`${url}-${index}`} className={surfaceCardClass}>
                         <img
                           src={url}
                           alt={`Service visual preview ${index + 1}`}
@@ -1408,49 +1382,49 @@ export default function ServiceForm({
                     ))}
                   </div>
                 ) : (
-                  <div className="flex h-40 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white text-xs font-semibold text-slate-400">
+                  <div className="flex h-40 items-center justify-center rounded-2xl border border-dashed border-border bg-card text-xs font-semibold text-muted-foreground">
                     No image added
                   </div>
                 )}
 
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                  <div className={summaryCardClass}>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                       Price
                     </p>
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-sm font-semibold text-foreground">
                       {formatMoney(values.price)}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                  <div className={summaryCardClass}>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                       Deposit
                     </p>
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-sm font-semibold text-foreground">
                       {formatMoney(values.deposit_amount)}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                  <div className={summaryCardClass}>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                       Duration
                     </p>
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-sm font-semibold text-foreground">
                       {values.duration_minutes} min
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                  <div className={summaryCardClass}>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                       Buffer
                     </p>
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-sm font-semibold text-foreground">
                       {values.buffer_minutes} min
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                  <div className={summaryCardClass}>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                       Capacity
                     </p>
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-sm font-semibold text-foreground">
                       {values.max_capacity}
                     </p>
                   </div>
@@ -1461,22 +1435,22 @@ export default function ServiceForm({
         )}
 
         {error && (
-          <p className="text-sm font-semibold text-rose-600" role="alert">
+          <p className="text-sm font-semibold text-destructive" role="alert">
             {error}
           </p>
         )}
 
-        <div className="flex flex-wrap items-center justify-end gap-4 border-t border-slate-100 pt-6">
+        <div className="flex flex-wrap items-center justify-end gap-4 border-t border-border pt-6">
           <button
             type="button"
             onClick={() => router.back()}
-            className="rounded-2xl px-8 py-3.5 text-xs font-black uppercase tracking-widest text-slate-400 transition-all hover:bg-slate-50 hover:text-slate-600"
+            className="rounded-2xl px-8 py-3.5 text-xs font-black uppercase tracking-widest text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
           >
             Discard
           </button>
           <button
             type="submit"
-            className="flex items-center gap-2 rounded-2xl bg-indigo-600 px-10 py-3.5 text-xs font-black uppercase tracking-widest text-white shadow-2xl shadow-indigo-200 transition-all hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex items-center gap-2 rounded-2xl bg-primary px-10 py-3.5 text-xs font-black uppercase tracking-widest text-primary-foreground shadow-2xl shadow-primary/30 transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isSaving}
           >
             <Save size={18} /> {isSaving ? "Saving..." : submitLabel}

@@ -13,7 +13,7 @@ export default async function AuthPage({ searchParams }: AuthPageProps) {
   const initialMode = modeParam === "signup" ? "signup" : "login";
 
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#0b0b10]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
       <AuthClient initialMode={initialMode} />
     </Suspense>
   );

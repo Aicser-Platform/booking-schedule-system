@@ -1,8 +1,8 @@
 import type { CSSProperties } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   BarChart3,
-  Calendar,
   CheckCircle2,
   Clock,
   Shield,
@@ -26,14 +26,14 @@ const fraunces = Fraunces({
 });
 
 const landingTheme = {
-  "--landing-bg": "#0b0b10",
-  "--landing-surface": "#12121a",
-  "--landing-surface-strong": "#181828",
-  "--landing-text": "#f8fafc",
-  "--landing-muted": "#9ca3af",
-  "--landing-accent": "#5b5af7",
-  "--landing-accent-strong": "#6f6dff",
-  "--landing-warm": "#8b5cf6",
+  "--landing-bg": "var(--background)",
+  "--landing-surface": "var(--card)",
+  "--landing-surface-strong": "var(--secondary)",
+  "--landing-text": "var(--foreground)",
+  "--landing-muted": "var(--muted-foreground)",
+  "--landing-accent": "var(--primary)",
+  "--landing-accent-strong": "var(--ring)",
+  "--landing-warm": "var(--accent)",
 } as CSSProperties;
 
 export default function HomePage() {
@@ -42,44 +42,52 @@ export default function HomePage() {
       className={`${sora.className} relative min-h-screen overflow-hidden bg-[color:var(--landing-bg)] text-[color:var(--landing-text)]`}
       style={landingTheme}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,#1c1b39,transparent_65%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.85),transparent_70%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(91,90,247,0.12),transparent_65%)]" />
       <div className="pointer-events-none absolute -right-20 top-20 h-56 w-56 rounded-full bg-[color:var(--landing-accent)]/20 blur-[120px]" />
 
       <div className="relative z-10 flex min-h-screen flex-col">
-        <header className="sticky top-0 z-30 border-b border-white/5 bg-[color:var(--landing-bg)]/85 backdrop-blur animate-in fade-in slide-in-from-top-4 duration-700">
+        <header className="sticky top-0 z-30 border-b border-border/60 bg-[color:var(--landing-bg)]/85 backdrop-blur animate-fade-in">
           <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[color:var(--landing-accent)]/15 text-[color:var(--landing-accent)] transition duration-300 hover:-translate-y-0.5 hover:bg-[color:var(--landing-accent)]/25">
-                <Calendar className="h-5 w-5" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[color:var(--landing-accent)]/15 text-[color:var(--landing-accent)] transition duration-300 hover:-translate-y-0.5 hover:bg-[color:var(--landing-accent)]/25">
+                <Image
+                  src="/logo.png"
+                  alt="Aicser Booking System"
+                  width={28}
+                  height={28}
+                  className="h-7 w-7"
+                  priority
+                />
               </div>
               <div>
-                <p className="text-lg font-semibold">DataBook</p>
+                <p className="text-lg font-semibold">Aicser Booking System</p>
                 <p className="text-[0.6rem] uppercase tracking-[0.35em] text-[color:var(--landing-muted)]">
-                  Operations Suite
+                  Booking Intelligence
                 </p>
               </div>
             </div>
             <nav className="hidden items-center gap-6 text-sm text-[color:var(--landing-muted)] md:flex">
               <Link
-                className="relative transition duration-300 hover:text-white after:absolute after:-bottom-2 after:left-1/2 after:h-[2px] after:w-0 after:-translate-x-1/2 after:rounded-full after:bg-[color:var(--landing-accent)] after:transition-all after:duration-300 hover:after:w-6"
+                className="relative transition duration-300 hover:text-foreground after:absolute after:-bottom-2 after:left-1/2 after:h-[2px] after:w-0 after:-translate-x-1/2 after:rounded-full after:bg-[color:var(--landing-accent)] after:transition-all after:duration-300 hover:after:w-6"
                 href="#features"
               >
                 Features
               </Link>
               <Link
-                className="relative transition duration-300 hover:text-white after:absolute after:-bottom-2 after:left-1/2 after:h-[2px] after:w-0 after:-translate-x-1/2 after:rounded-full after:bg-[color:var(--landing-accent)] after:transition-all after:duration-300 hover:after:w-6"
+                className="relative transition duration-300 hover:text-foreground after:absolute after:-bottom-2 after:left-1/2 after:h-[2px] after:w-0 after:-translate-x-1/2 after:rounded-full after:bg-[color:var(--landing-accent)] after:transition-all after:duration-300 hover:after:w-6"
                 href="#workflow"
               >
                 Workflow
               </Link>
               <Link
-                className="relative transition duration-300 hover:text-white after:absolute after:-bottom-2 after:left-1/2 after:h-[2px] after:w-0 after:-translate-x-1/2 after:rounded-full after:bg-[color:var(--landing-accent)] after:transition-all after:duration-300 hover:after:w-6"
+                className="relative transition duration-300 hover:text-foreground after:absolute after:-bottom-2 after:left-1/2 after:h-[2px] after:w-0 after:-translate-x-1/2 after:rounded-full after:bg-[color:var(--landing-accent)] after:transition-all after:duration-300 hover:after:w-6"
                 href="#insights"
               >
                 Insights
               </Link>
               <Link
-                className="relative transition duration-300 hover:text-white after:absolute after:-bottom-2 after:left-1/2 after:h-[2px] after:w-0 after:-translate-x-1/2 after:rounded-full after:bg-[color:var(--landing-accent)] after:transition-all after:duration-300 hover:after:w-6"
+                className="relative transition duration-300 hover:text-foreground after:absolute after:-bottom-2 after:left-1/2 after:h-[2px] after:w-0 after:-translate-x-1/2 after:rounded-full after:bg-[color:var(--landing-accent)] after:transition-all after:duration-300 hover:after:w-6"
                 href="#pricing"
               >
                 Pricing
@@ -89,7 +97,7 @@ export default function HomePage() {
               <Button
                 asChild
                 variant="outline"
-                className="border-white/15 bg-transparent text-white/80 transition duration-300 hover:-translate-y-0.5 hover:bg-white/5 hover:text-white"
+                className="border-border/60 bg-background/60 text-muted-foreground transition duration-300 hover:-translate-y-0.5 hover:bg-muted/60 hover:text-foreground"
               >
                 <Link href="/auth?mode=login">Sign in</Link>
               </Button>
@@ -105,8 +113,8 @@ export default function HomePage() {
 
         <section className="mx-auto w-full max-w-6xl px-6 pb-24 pt-16 lg:pt-24">
           <div className="grid items-center gap-14 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-[0.35em] text-[color:var(--landing-muted)]">
+            <div className="space-y-8 animate-fade-in">
+              <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/70 px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-[0.35em] text-[color:var(--landing-muted)]">
                 <span className="h-2 w-2 rounded-full bg-[color:var(--landing-warm)]" />
                 Built for multi-location teams
               </div>
@@ -152,7 +160,7 @@ export default function HomePage() {
                 ].map((stat) => (
                   <div
                     key={stat.label}
-                    className="rounded-2xl border border-white/10 bg-[color:var(--landing-surface)]/70 px-4 py-3 transition duration-300 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/5"
+                    className="rounded-2xl border border-border/60 bg-[color:var(--landing-surface)]/75 px-4 py-3 transition duration-300 hover:-translate-y-0.5 hover:border-border hover:bg-card/80"
                   >
                     <p className="text-xl font-semibold">{stat.value}</p>
                     <p className="text-xs uppercase tracking-[0.25em] text-[color:var(--landing-muted)]">
@@ -163,9 +171,9 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="relative animate-in fade-in slide-in-from-bottom-6 duration-700 delay-150">
+            <div className="relative animate-zoom-in">
               <div className="absolute -left-10 top-10 h-24 w-24 rounded-full bg-[color:var(--landing-accent)]/20 blur-[80px]" />
-              <div className="relative rounded-[28px] border border-white/10 bg-[color:var(--landing-surface)]/85 p-6 shadow-[0_30px_80px_rgba(5,10,20,0.7)] float-soft">
+              <div className="relative rounded-[28px] border border-border/60 bg-[color:var(--landing-surface)]/85 p-6 shadow-[0_30px_80px_rgba(15,23,42,0.18)] float-soft">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs uppercase tracking-[0.3em] text-[color:var(--landing-muted)]">
@@ -193,7 +201,7 @@ export default function HomePage() {
                   ].map((slot) => (
                     <div
                       key={slot.time}
-                      className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
+                      className="flex items-center justify-between rounded-2xl border border-border/60 bg-card/70 px-4 py-3"
                     >
                       <div>
                         <p className="text-sm font-medium">{slot.time}</p>
@@ -201,20 +209,20 @@ export default function HomePage() {
                           {slot.label}
                         </p>
                       </div>
-                      <span className="rounded-full bg-white/10 px-3 py-1 text-[0.65rem] uppercase tracking-[0.3em] text-[color:var(--landing-muted)]">
+                      <span className="rounded-full bg-muted/60 px-3 py-1 text-[0.65rem] uppercase tracking-[0.3em] text-[color:var(--landing-muted)]">
                         {slot.status}
                       </span>
                     </div>
                   ))}
                 </div>
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                  <div className="rounded-2xl border border-border/60 bg-card/70 px-4 py-3">
                     <p className="text-xs uppercase tracking-[0.3em] text-[color:var(--landing-muted)]">
                       Utilization
                     </p>
                     <p className="text-2xl font-semibold">86%</p>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                  <div className="rounded-2xl border border-border/60 bg-card/70 px-4 py-3">
                     <p className="text-xs uppercase tracking-[0.3em] text-[color:var(--landing-muted)]">
                       Reminders
                     </p>
@@ -222,7 +230,7 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
-              <div className="absolute -bottom-10 left-10 hidden rounded-2xl border border-white/10 bg-[color:var(--landing-surface-strong)]/95 px-4 py-3 shadow-[0_18px_40px_rgba(6,10,22,0.5)] lg:block">
+              <div className="absolute -bottom-10 left-10 hidden rounded-2xl border border-border/60 bg-[color:var(--landing-surface-strong)]/95 px-4 py-3 shadow-[0_18px_40px_rgba(15,23,42,0.16)] lg:block">
                 <p className="text-xs uppercase tracking-[0.3em] text-[color:var(--landing-muted)]">
                   Next opening
                 </p>
@@ -356,7 +364,7 @@ export default function HomePage() {
               </h2>
               <p className="text-sm text-[color:var(--landing-muted)]">
                 Automate the busy work and keep the team focused on service.
-                DataBook handles everything behind the scenes.
+                Aicser Booking System handles everything behind the scenes.
               </p>
             </div>
             <div className="grid gap-4">
@@ -526,11 +534,17 @@ export default function HomePage() {
         <footer className="border-t border-white/5">
           <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-4 px-6 py-10 sm:flex-row">
             <div className="flex items-center gap-3">
-              <Calendar className="h-5 w-5 text-[color:var(--landing-accent)]" />
-              <span className="font-semibold">DataBook</span>
+              <Image
+                src="/logo.png"
+                alt="Aicser Booking System"
+                width={20}
+                height={20}
+                className="h-5 w-5"
+              />
+              <span className="font-semibold">Aicser Booking System</span>
             </div>
             <p className="text-sm text-[color:var(--landing-muted)]">
-              © 2026 DataBook. All rights reserved.
+              © 2026 Aicser Booking System. All rights reserved.
             </p>
           </div>
         </footer>

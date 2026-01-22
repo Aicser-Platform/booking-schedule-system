@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from datetime import datetime, timedelta, time, date
+from datetime import datetime, timedelta, time, date, timezone as dt_timezone
 import calendar
 from zoneinfo import ZoneInfo
 from app.core.database import get_db
@@ -52,6 +52,9 @@ def _service_allows_booking(
     if not schedule:
         return True
 
+    schedule_map = schedule._mapping
+    service_tz = ZoneInfo(schedule_map.get("timezone") or "UTC")
+
     exceptions = db.execute(
         """
         SELECT is_open, start_time, end_time
@@ -61,22 +64,28 @@ def _service_allows_booking(
         {"service_id": service_id, "date": local_start.date()},
     ).fetchall()
 
-    if exceptions:
-        open_exceptions = [ex for ex in exceptions if ex[0]]
-        if not open_exceptions:
-            return False
-        for ex in open_exceptions:
-            if ex[1] and ex[2]:
-                start_dt = datetime.combine(local_start.date(), ex[1], tzinfo=schedule_tz)
-                end_dt = datetime.combine(local_start.date(), ex[2], tzinfo=schedule_tz)
-            else:
-                start_dt = datetime.combine(local_start.date(), time(0, 0), tzinfo=schedule_tz)
-                end_dt = start_dt + timedelta(days=1)
-            if local_start >= start_dt and local_end <= end_dt:
-                return True
-        return False
+    start_utc = local_start.astimezone(dt_timezone.utc)
+    end_utc = local_end.astimezone(dt_timezone.utc)
 
-    schedule_map = schedule._mapping
+    if exceptions:
+        override_exceptions = [ex for ex in exceptions if ex[0] and ex[1] and ex[2]]
+        closed_exceptions = [ex for ex in exceptions if not ex[0]]
+        extra_open_exceptions = [ex for ex in exceptions if ex[0] and not (ex[1] and ex[2])]
+
+        if override_exceptions:
+            for ex in override_exceptions:
+                start_dt = datetime.combine(local_start.date(), ex[1], tzinfo=service_tz)
+                end_dt = datetime.combine(local_start.date(), ex[2], tzinfo=service_tz)
+                if start_utc >= start_dt.astimezone(dt_timezone.utc) and end_utc <= end_dt.astimezone(dt_timezone.utc):
+                    return True
+            return False
+        if closed_exceptions:
+            return False
+        if extra_open_exceptions:
+            day_start = datetime.combine(local_start.date(), time(0, 0), tzinfo=service_tz)
+            day_end = day_start + timedelta(days=1)
+            return start_utc >= day_start.astimezone(dt_timezone.utc) and end_utc <= day_end.astimezone(dt_timezone.utc)
+
     rule_type = schedule_map.get("rule_type")
     open_time = schedule_map.get("open_time")
     close_time = schedule_map.get("close_time")
@@ -84,9 +93,9 @@ def _service_allows_booking(
 
     if rule_type == "daily":
         if open_time and close_time:
-            start_dt = datetime.combine(local_start.date(), open_time, tzinfo=schedule_tz)
-            end_dt = datetime.combine(local_start.date(), close_time, tzinfo=schedule_tz)
-            return local_start >= start_dt and local_end <= end_dt
+            start_dt = datetime.combine(local_start.date(), open_time, tzinfo=service_tz)
+            end_dt = datetime.combine(local_start.date(), close_time, tzinfo=service_tz)
+            return start_utc >= start_dt.astimezone(dt_timezone.utc) and end_utc <= end_dt.astimezone(dt_timezone.utc)
         return True
 
     rules = db.execute(
@@ -119,13 +128,13 @@ def _service_allows_booking(
             continue
 
         if start_time and end_time:
-            start_dt = datetime.combine(local_start.date(), start_time, tzinfo=schedule_tz)
-            end_dt = datetime.combine(local_start.date(), end_time, tzinfo=schedule_tz)
-            return local_start >= start_dt and local_end <= end_dt
+            start_dt = datetime.combine(local_start.date(), start_time, tzinfo=service_tz)
+            end_dt = datetime.combine(local_start.date(), end_time, tzinfo=service_tz)
+            return start_utc >= start_dt.astimezone(dt_timezone.utc) and end_utc <= end_dt.astimezone(dt_timezone.utc)
         if open_time and close_time:
-            start_dt = datetime.combine(local_start.date(), open_time, tzinfo=schedule_tz)
-            end_dt = datetime.combine(local_start.date(), close_time, tzinfo=schedule_tz)
-            return local_start >= start_dt and local_end <= end_dt
+            start_dt = datetime.combine(local_start.date(), open_time, tzinfo=service_tz)
+            end_dt = datetime.combine(local_start.date(), close_time, tzinfo=service_tz)
+            return start_utc >= start_dt.astimezone(dt_timezone.utc) and end_utc <= end_dt.astimezone(dt_timezone.utc)
         return True
 
     return False
@@ -222,6 +231,9 @@ async def create_booking(
     local_start = booking.start_time_utc.astimezone(schedule_tz)
     local_end = end_time_utc.astimezone(schedule_tz)
     local_date = local_start.date()
+
+    if not _service_allows_booking(db, booking.service_id, local_start, local_end, schedule_tz):
+        raise HTTPException(status_code=400, detail="Service is not available at this time")
 
     schedule = db.execute(
         """

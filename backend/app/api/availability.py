@@ -137,7 +137,6 @@ def _get_service_operating_intervals(
     db: Session,
     service_id: str,
     target_date: date,
-    schedule_tz: ZoneInfo,
 ) -> List[Tuple[datetime, datetime]]:
     schedule = db.execute(
         text(
@@ -154,17 +153,19 @@ def _get_service_operating_intervals(
         {"service_id": service_id, "date": target_date},
     ).fetchone()
 
-    day_start = datetime.combine(target_date, time(0, 0), tzinfo=schedule_tz)
-    day_end = day_start + timedelta(days=1)
+    utc = dt_timezone.utc
+    service_tz = ZoneInfo("UTC")
 
-    if not schedule:
-        return [(day_start, day_end)]
+    if schedule:
+        schedule_map = schedule._mapping
+        service_tz = ZoneInfo(schedule_map.get("timezone") or "UTC")
 
-    schedule_map = schedule._mapping
-    service_tz = ZoneInfo(schedule_map.get("timezone") or "UTC")
     service_day_start = datetime.combine(target_date, time(0, 0), tzinfo=service_tz)
     service_day_end = service_day_start + timedelta(days=1)
     service_weekday = (service_day_start.weekday() + 1) % 7
+
+    if not schedule:
+        return [(service_day_start.astimezone(utc), service_day_end.astimezone(utc))]
 
     exceptions = db.execute(
         text(
@@ -177,22 +178,24 @@ def _get_service_operating_intervals(
         {"service_id": service_id, "date": target_date},
     ).fetchall()
 
-    if exceptions:
-        open_exceptions = [ex for ex in exceptions if ex[0]]
-        if not open_exceptions:
-            return []
-        intervals = []
-        for ex in open_exceptions:
-            if ex[1] and ex[2]:
-                start_dt = datetime.combine(target_date, ex[1], tzinfo=service_tz)
-                end_dt = datetime.combine(target_date, ex[2], tzinfo=service_tz)
-            else:
-                start_dt = service_day_start
-                end_dt = service_day_end
+    override_exceptions = [ex for ex in exceptions if ex[0] and ex[1] and ex[2]]
+    closed_exceptions = [ex for ex in exceptions if not ex[0]]
+    extra_open_exceptions = [ex for ex in exceptions if ex[0] and not (ex[1] and ex[2])]
+
+    intervals: List[Tuple[datetime, datetime]] = []
+
+    if override_exceptions:
+        for ex in override_exceptions:
+            start_dt = datetime.combine(target_date, ex[1], tzinfo=service_tz)
+            end_dt = datetime.combine(target_date, ex[2], tzinfo=service_tz)
             intervals.append((start_dt, end_dt))
+    elif closed_exceptions:
+        return []
+    elif extra_open_exceptions:
+        intervals.append((service_day_start, service_day_end))
     else:
+        schedule_map = schedule._mapping
         rule_type = schedule_map.get("rule_type")
-        intervals: List[Tuple[datetime, datetime]] = []
 
         if rule_type == "daily":
             open_time = schedule_map.get("open_time")
@@ -258,14 +261,9 @@ def _get_service_operating_intervals(
         if not intervals:
             return []
 
-    converted: List[Tuple[datetime, datetime]] = []
-    for start_dt, end_dt in intervals:
-        converted_start = start_dt.astimezone(schedule_tz)
-        converted_end = end_dt.astimezone(schedule_tz)
-        clipped = _clip_interval(converted_start, converted_end, day_start, day_end)
-        if clipped:
-            converted.append(clipped)
-
+    converted = [
+        (start.astimezone(utc), end.astimezone(utc)) for start, end in intervals
+    ]
     return _merge_intervals(converted)
 
 def _round_up_to_granularity(value: datetime, granularity_minutes: int) -> datetime:
@@ -476,15 +474,28 @@ def _compute_slots_for_date(
         if extra_intervals:
             intervals = _merge_intervals(intervals + extra_intervals)
 
-        service_intervals = _get_service_operating_intervals(
+        service_intervals_utc = _get_service_operating_intervals(
             db=db,
             service_id=service_id,
             target_date=target_date,
-            schedule_tz=schedule_tz,
         )
-        if not service_intervals:
+        if not service_intervals_utc:
             continue
-        intervals = _intersect_intervals(intervals, service_intervals)
+
+        staff_intervals_utc = [
+            (start.astimezone(utc), end.astimezone(utc))
+            for start, end in intervals
+        ]
+        intersected_utc = _intersect_intervals(
+            staff_intervals_utc,
+            service_intervals_utc,
+        )
+        if not intersected_utc:
+            continue
+        intervals = [
+            (start.astimezone(schedule_tz), end.astimezone(schedule_tz))
+            for start, end in intersected_utc
+        ]
 
         if not intervals:
             continue
@@ -1309,6 +1320,13 @@ async def get_available_slots(
         day_of_week += 1
     
     available_slots = []
+    service_intervals_utc = _get_service_operating_intervals(
+        db=db,
+        service_id=service_id,
+        target_date=date,
+    )
+    if not service_intervals_utc:
+        return []
     
     for staff_id in staff_ids:
         # Get availability rules for this staff on this day
@@ -1340,9 +1358,10 @@ async def get_available_slots(
         # Use exception times if available, otherwise use rules
         time_ranges = []
         if exception and exception[1] and exception[2]:
-            time_ranges = [(exception[1], exception[2])]
+            rule_timezone = rules[0][2] if rules else "UTC"
+            time_ranges = [(exception[1], exception[2], rule_timezone)]
         else:
-            time_ranges = [(rule[0], rule[1]) for rule in rules]
+            time_ranges = [(rule[0], rule[1], rule[2]) for rule in rules]
         
         # Get existing bookings for this staff on this date
         bookings_result = db.execute(
@@ -1358,17 +1377,29 @@ async def get_available_slots(
         booked_times = [(row[0], row[1]) for row in bookings_result.fetchall()]
         
         # Generate available slots
-        for start_time, end_time in time_ranges:
-            current_time = datetime.combine(date, start_time)
-            end_datetime = datetime.combine(date, end_time)
+        for start_time, end_time, rule_timezone in time_ranges:
+            rule_tz = ZoneInfo(rule_timezone or "UTC")
+            current_time = datetime.combine(date, start_time, tzinfo=rule_tz)
+            end_datetime = datetime.combine(date, end_time, tzinfo=rule_tz)
             
             while current_time + timedelta(minutes=total_slot_time) <= end_datetime:
                 slot_end = current_time + timedelta(minutes=duration)
+                slot_start_utc = current_time.astimezone(dt_timezone.utc)
+                slot_end_utc = slot_end.astimezone(dt_timezone.utc)
+
+                within_service = any(
+                    slot_start_utc >= service_start
+                    and slot_end_utc <= service_end
+                    for service_start, service_end in service_intervals_utc
+                )
+                if not within_service:
+                    current_time += timedelta(minutes=total_slot_time)
+                    continue
                 
                 # Check if slot conflicts with existing bookings
                 is_available = True
                 for booked_start, booked_end in booked_times:
-                    if (current_time < booked_end and slot_end > booked_start):
+                    if (slot_start_utc < booked_end and slot_end_utc > booked_start):
                         is_available = False
                         break
                 
