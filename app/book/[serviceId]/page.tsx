@@ -90,9 +90,9 @@ async function getServiceStaff(serviceId: string): Promise<StaffOption[]> {
 export default async function BookServicePage({
   params,
 }: {
-  params: { serviceId: string };
+  params: Promise<{ serviceId: string }>;
 }) {
-  const { serviceId } = params;
+  const { serviceId } = await params;
 
   // Check if user is logged in
   const me = await getMe();

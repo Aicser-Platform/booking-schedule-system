@@ -48,6 +48,7 @@ export default function DeleteServiceButton({ serviceId }: Props) {
       aria-label="Archive service"
       onClick={handleDelete}
       disabled={isDeleting}
+      className="rounded-lg border-gray-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors"
     >
       <Trash2 className="size-4" />
     </Button>

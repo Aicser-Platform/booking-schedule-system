@@ -2,17 +2,8 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/dashboard/empty-state";
-import { ImageCarousel } from "@/components/ui/image-carousel";
 import { Plus, Edit } from "lucide-react";
 import DeleteServiceButton from "./DeleteServiceButton";
 
@@ -79,13 +70,18 @@ export default async function AdminServicesPage() {
 
   return (
     <DashboardLayout>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Services</h2>
-          <p className="text-muted-foreground">Manage all service offerings</p>
+      <div className="mb-8 flex items-start justify-between">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+            Services
+          </h1>
+          <p className="text-gray-500">Manage all service offerings</p>
         </div>
 
-        <Button asChild className="glow-primary-subtle">
+        <Button
+          asChild
+          className="rounded-xl shadow-sm hover:shadow-md transition-shadow"
+        >
           <Link href="/admin/services/new">
             <Plus className="mr-2 size-4" />
             Add Service
@@ -95,85 +91,106 @@ export default async function AdminServicesPage() {
 
       {services.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {services.map((service) => (
-            <Card key={service.id} className="glass-card">
-              {(() => {
-                const images = service.image_urls?.length
-                  ? service.image_urls
-                  : service.image_url
-                    ? [service.image_url]
-                    : [];
+          {services.map((service) => {
+            const images = service.image_urls?.length
+              ? service.image_urls
+              : service.image_url
+                ? [service.image_url]
+                : [];
+            const firstImage = images[0];
 
-                return images.length > 0 ? (
-                  <div className="overflow-hidden rounded-t-xl">
-                    <ImageCarousel
-                      images={images}
+            return (
+              <div
+                key={service.id}
+                className="group relative bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden"
+              >
+                {/* Image Section */}
+                {firstImage ? (
+                  <div className="relative aspect-[4/3] overflow-hidden">
+                    <img
+                      src={firstImage}
                       alt={service.name}
-                      className="h-36 w-full"
-                      imageClassName="h-36 w-full object-cover"
+                      className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>
-                ) : null;
-              })()}
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle>{service.name}</CardTitle>
-                    <CardDescription className="mt-1 line-clamp-2">
-                      {service.description}
-                    </CardDescription>
-                  </div>
-                  <Badge variant={service.is_active ? "default" : "secondary"}>
-                    {service.is_active ? "Active" : "Inactive"}
-                  </Badge>
-                </div>
-              </CardHeader>
+                ) : (
+                  <div className="relative aspect-[4/3] bg-gray-100" />
+                )}
 
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Duration</p>
-                    <p className="font-medium">
-                      {service.duration_minutes} min
-                    </p>
+                {/* Content Section */}
+                <div className="p-5 space-y-4">
+                  {/* Header */}
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="text-lg font-semibold text-gray-900 leading-tight">
+                        {service.name}
+                      </h3>
+                      {service.is_active && (
+                        <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary shrink-0">
+                          Active
+                        </span>
+                      )}
+                    </div>
+                    {service.description && (
+                      <p className="text-sm text-gray-500 line-clamp-2">
+                        {service.description}
+                      </p>
+                    )}
                   </div>
-                  <div>
-                    <p className="text-muted-foreground">Price</p>
-                    <p className="font-medium">${service.price}</p>
+
+                  {/* Metadata Grid - 2 columns, clean spacing */}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-0.5">Duration</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {service.duration_minutes} min
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-0.5">Price</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        ${service.price}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-0.5">Deposit</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        ${service.deposit_amount}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-0.5">Buffer</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {service.buffer_minutes} min
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-0.5">Capacity</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {service.max_capacity}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground">Deposit</p>
-                    <p className="font-medium">${service.deposit_amount}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Buffer</p>
-                    <p className="font-medium">{service.buffer_minutes} min</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Capacity</p>
-                    <p className="font-medium">{service.max_capacity}</p>
+
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      asChild
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 rounded-lg border-gray-200 hover:bg-gray-50 transition-colors"
+                    >
+                      <Link href={`/admin/services/${service.id}/edit`}>
+                        <Edit className="mr-2 size-4" />
+                        Edit
+                      </Link>
+                    </Button>
+                    <DeleteServiceButton serviceId={service.id} />
                   </div>
                 </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    asChild
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 bg-transparent"
-                  >
-                    <Link href={`/admin/services/${service.id}/edit`}>
-                      <Edit className="mr-2 size-4" />
-                      Edit
-                    </Link>
-                  </Button>
-
-                  {/* UI-only until you add a delete endpoint + client action */}
-                  <DeleteServiceButton serviceId={service.id} />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            );
+          })}
         </div>
       ) : (
         <EmptyState

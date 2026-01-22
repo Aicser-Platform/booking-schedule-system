@@ -67,9 +67,9 @@ async function getBookingForPayment(
 export default async function PaymentPage({
   params,
 }: {
-  params: { bookingId: string };
+  params: Promise<{ bookingId: string }>;
 }) {
-  const { bookingId } = params;
+  const { bookingId } = await params;
 
   const me = await getMe();
   if (!me) redirect("/auth/login");

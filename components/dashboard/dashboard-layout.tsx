@@ -21,7 +21,6 @@ import {
   SidebarInset,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -81,13 +80,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
         <Sidebar>
-          <SidebarHeader className="border-b border-border">
-            <div className="flex items-center gap-2 px-2 py-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground glow-primary-subtle">
-                <RoleIcon className="size-6" />
+          <SidebarHeader className="px-4 py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+                <RoleIcon className="size-5" />
               </div>
               <div className="flex flex-col">
-                <span className="text-lg font-semibold">BookingPro</span>
+                <span className="text-base font-semibold">BookingPro</span>
                 <span className="text-xs text-muted-foreground capitalize">
                   {roleLabelMap[role]} Portal
                 </span>
@@ -121,7 +120,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             ))}
           </SidebarContent>
 
-          <SidebarFooter className="border-t border-border">
+          <SidebarFooter className="mt-auto px-2 py-3">
             <SidebarMenu>
               <SidebarMenuItem>
                 {isMounted ? (
@@ -203,10 +202,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </Sidebar>
 
         <SidebarInset>
-          <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b border-border bg-card/50 backdrop-blur-lg px-6">
+          <header className="sticky top-0 z-10 flex h-16 items-center gap-4 bg-white/80 backdrop-blur-md px-6">
             <SidebarTrigger />
-            <Separator orientation="vertical" className="h-6" />
-            <div className="flex flex-1 items-center justify-between">
+            <div className="flex flex-1 items-center justify-between ml-4">
               <div className="flex items-center gap-2">
                 <h1 className="text-lg font-semibold">
                   {pathname
@@ -218,15 +216,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
 
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative rounded-lg"
+                >
                   <Bell className="size-5" />
-                  <span className="absolute top-1 right-1 size-2 rounded-full bg-primary glow-primary-subtle" />
+                  <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-primary" />
                 </Button>
               </div>
             </div>
           </header>
 
-          <main className="flex-1 p-6">{children}</main>
+          <main className="flex-1 p-6 bg-gray-50">{children}</main>
         </SidebarInset>
       </div>
     </SidebarProvider>

@@ -35,6 +35,101 @@
     animation: zoomIn 1.5s ease-out 0.4s both;
   }
 
+  /* Fade-in animation for landing sections */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.6s ease-out both;
+  }
+
+  /* Slide up animation for scroll effects */
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(40px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.8s ease-out both;
+  }
+
+  /* Scale in animation */
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.6s ease-out both;
+  }
+
+  /* Fade in from left */
+  @keyframes fadeInLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .animate-fade-in-left {
+    animation: fadeInLeft 0.7s ease-out both;
+  }
+
+  /* Fade in from right */
+  @keyframes fadeInRight {
+    from {
+      opacity: 0;
+      transform: translateX(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .animate-fade-in-right {
+    animation: fadeInRight 0.7s ease-out both;
+  }
+
+  /* Gentle floating animation for cards */
+  @keyframes floatSoft {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+
+  .float-soft {
+    animation: floatSoft 6s ease-in-out infinite;
+  }
+
   /* Enhanced typography for better contrast */
   h1,
   .h1 {
