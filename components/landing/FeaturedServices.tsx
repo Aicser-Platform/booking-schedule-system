@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { ServiceCard } from "./ServiceCard";
 import type { Service } from "@/lib/types/landing";
 
 interface FeaturedServicesProps {
@@ -10,34 +9,60 @@ interface FeaturedServicesProps {
 
 export function FeaturedServices({ services }: FeaturedServicesProps) {
   if (services.length === 0) return null;
+  const highlight = services[0];
+  const image = highlight.imageUrls?.[0] || highlight.imageUrl;
 
   return (
-    <section className="bg-muted/20">
+    <section className="bg-background">
       <div className="mx-auto max-w-7xl px-6 py-20 lg:px-8">
-        <div className="mb-12 flex flex-col items-center justify-between gap-6 text-center sm:flex-row sm:text-left">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Chef's recommendations
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-              Featured Services
-            </h2>
-            <p className="mt-3 text-lg text-muted-foreground">
-              A selection of our most requested experiences.
-            </p>
-          </div>
-          <Link
-            href="#services"
-            className="text-sm font-semibold text-foreground/70 underline-offset-4 transition-colors hover:text-foreground hover:underline"
-          >
-            View full menu
-          </Link>
-        </div>
+        <div className="rounded-[28px] bg-muted/30 p-6 shadow-sm sm:p-10">
+          <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:items-center">
+            <div className="overflow-hidden rounded-3xl bg-muted">
+              {image ? (
+                <img
+                  src={image}
+                  alt={highlight.publicName || highlight.name}
+                  loading="lazy"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex aspect-[4/3] w-full items-center justify-center text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Highlight Image
+                </div>
+              )}
+            </div>
 
-        <div className="flex flex-col gap-4">
-          {services.slice(0, 4).map((service) => (
-            <ServiceCard key={service.id} service={service} />
-          ))}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+                Monthly highlight
+              </p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+                {highlight.publicName || highlight.name}
+              </h2>
+              <p className="mt-4 text-base text-muted-foreground sm:text-lg">
+                {highlight.description ||
+                  "A premium experience curated for focus, clarity, and convenience."}
+              </p>
+
+              <ul className="mt-6 space-y-2 text-sm text-muted-foreground">
+                <li>- Concierge service included</li>
+                <li>- Flexible schedule options</li>
+                <li>- Designed for premium clientele</li>
+              </ul>
+
+              <div className="mt-8 flex flex-wrap items-center gap-4">
+                <Link
+                  href={`/book/${highlight.id}?serviceId=${highlight.id}`}
+                  className="rounded-full bg-primary px-6 py-3 text-xs font-semibold uppercase tracking-[0.25em] text-primary-foreground shadow-sm transition hover:bg-primary/90"
+                >
+                  Explore session
+                </Link>
+                <span className="text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+                  {highlight.durationMinutes} min - ${highlight.price}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>

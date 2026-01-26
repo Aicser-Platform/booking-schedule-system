@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/landing/Navbar";
 import { HeroSection } from "@/components/landing/HeroSection";
+import { CategoryGrid } from "@/components/landing/CategoryGrid";
+import { FeaturedServices } from "@/components/landing/FeaturedServices";
 import { ServicesGrid } from "@/components/landing/ServicesGrid";
 import { TrustSection } from "@/components/landing/TrustSection";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Footer } from "@/components/landing/Footer";
 import { useScrollAnimation } from "@/hooks/use-scroll-animation";
-import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
 import type { Category, FilterState, Service } from "@/lib/types/landing";
 
 type ApiService = {
@@ -36,7 +36,6 @@ export default function HomePage() {
   const [services, setServices] = useState<Service[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Scroll animation hooks for each section
   const servicesSection = useScrollAnimation({ threshold: 0.1 });
   const trustSection = useScrollAnimation({ threshold: 0.2 });
   const howItWorksSection = useScrollAnimation({ threshold: 0.2 });
@@ -128,13 +127,48 @@ export default function HomePage() {
     });
   }, [filters, services]);
 
+  const handleCategorySelect = (categoryId: string) => {
+    setFilters((prev) => ({ ...prev, category: categoryId }));
+    document.getElementById("services")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
+  const categories = useMemo(() => {
+    const unique = new Map<string, Category>();
+    services.forEach((service) => {
+      if (!service.category) return;
+      if (!unique.has(service.category)) {
+        unique.set(service.category, {
+          id: service.category,
+          name: service.category,
+        });
+      }
+    });
+    return Array.from(unique.values()).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
+  }, [services]);
+
+  const featuredServices = useMemo(() => {
+    const popular = services.filter((service) =>
+      (service.tags ?? []).includes("Popular"),
+    );
+    const source = popular.length ? popular : services;
+    return source.slice(0, 4);
+  }, [services]);
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#fbfaf7]">
       <Navbar />
       <main>
         <HeroSection />
+        <CategoryGrid
+          categories={categories}
+          onCategorySelect={handleCategorySelect}
+        />
 
-        {/* All Services Section with integrated search */}
         <section id="services" className="bg-background">
           <div
             ref={servicesSection.ref}
@@ -144,42 +178,17 @@ export default function HomePage() {
                 : "translate-y-8 opacity-0"
             }`}
           >
-            {/* Header with Search Bar */}
-            <div className="mb-12 space-y-8">
-              <div className="text-center">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Explore our services
-                </p>
-                <h2 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">
-                  All Services
-                </h2>
-                <p className="mt-4 text-lg text-muted-foreground">
-                  Browse and search through our complete service catalog
-                </p>
-              </div>
-
-              {/* Prominent Search Bar */}
-              <div className="mx-auto max-w-2xl">
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search services by name or description..."
-                    value={filters.search}
-                    onChange={(e) =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        search: e.target.value,
-                      }))
-                    }
-                    className="h-14 rounded-full border-2 pl-12 pr-6 text-base shadow-lg transition-all focus-visible:border-primary focus-visible:shadow-xl"
-                  />
-                </div>
-                <p className="mt-3 text-center text-sm text-muted-foreground">
-                  {filteredServices.length} service
-                  {filteredServices.length !== 1 ? "s" : ""} found
-                  {filters.search && " for your search"}
-                </p>
-              </div>
+            <div className="mb-12 text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+                Curated offerings
+              </p>
+              <h2 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">
+                Our Services
+              </h2>
+              <p className="mt-4 text-base text-muted-foreground sm:text-lg">
+                Tailored solutions designed for clients who value precision and
+                care.
+              </p>
             </div>
 
             {/* Services Grid */}
@@ -187,7 +196,8 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Trust Section with scroll animation */}
+        <FeaturedServices services={featuredServices} />
+
         <div
           id="about"
           ref={trustSection.ref}
@@ -200,7 +210,6 @@ export default function HomePage() {
           <TrustSection />
         </div>
 
-        {/* How It Works with scroll animation */}
         <div
           ref={howItWorksSection.ref}
           className={`transition-all duration-700 delay-100 ${

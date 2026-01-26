@@ -19,6 +19,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  DEMO_AUTO_SUBMIT,
+  DEMO_ENABLED,
+  demoAccounts,
+} from "@/lib/demo-accounts";
 
 type Mode = "login" | "signup";
 
@@ -71,8 +76,7 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
     router.replace(query ? `/auth?${query}` : "/auth", { scroll: false });
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitLogin = async (email: string, password: string) => {
     setLoginLoading(true);
     setLoginError(null);
 
@@ -83,7 +87,7 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+        body: JSON.stringify({ email, password }),
       });
 
       if (!res.ok) {
@@ -110,6 +114,30 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
       setLoginError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoginLoading(false);
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitLogin(loginEmail, loginPassword);
+  };
+
+  const handleDemoLogin = (email: string, password: string) => {
+    setLoginEmail(email);
+    setLoginPassword(password);
+    setLoginError(null);
+    setSignupError(null);
+
+    if (mode !== "login") {
+      handleModeChange("login");
+    }
+
+    if (DEMO_AUTO_SUBMIT) {
+      setTimeout(() => {
+        if (!loginLoading) {
+          void submitLogin(email, password);
+        }
+      }, 0);
     }
   };
 
@@ -306,6 +334,35 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
                       </Button>
                     </div>
 
+                    {DEMO_ENABLED && (
+                      <div className="mt-6 rounded-xl border border-dashed border-border/70 bg-muted/40 px-4 py-4">
+                        <p className="text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+                          Demo accounts (testing only)
+                        </p>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Tap to auto-fill seeded credentials.
+                        </p>
+                        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                          {demoAccounts.map((account) => (
+                            <Button
+                              key={account.role}
+                              type="button"
+                              variant="outline"
+                              className="h-10 rounded-full border-border/60 bg-background text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-foreground/80 transition hover:border-border hover:text-foreground"
+                              onClick={() =>
+                                handleDemoLogin(
+                                  account.email,
+                                  account.password,
+                                )
+                              }
+                            >
+                              {account.label}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="mt-6 text-center text-xs uppercase tracking-[0.3em] text-muted-foreground">
                       New here?{" "}
                       <button
@@ -444,6 +501,35 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
                         <ArrowRight className="h-4 w-4" />
                       </Button>
                     </div>
+
+                    {DEMO_ENABLED && (
+                      <div className="mt-6 rounded-xl border border-dashed border-border/70 bg-muted/40 px-4 py-4">
+                        <p className="text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+                          Demo accounts (testing only)
+                        </p>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Use a pre-seeded account to preview the experience.
+                        </p>
+                        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                          {demoAccounts.map((account) => (
+                            <Button
+                              key={account.role}
+                              type="button"
+                              variant="outline"
+                              className="h-10 rounded-full border-border/60 bg-background text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-foreground/80 transition hover:border-border hover:text-foreground"
+                              onClick={() =>
+                                handleDemoLogin(
+                                  account.email,
+                                  account.password,
+                                )
+                              }
+                            >
+                              {account.label}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="mt-6 text-center text-xs uppercase tracking-[0.3em] text-muted-foreground">
                       Already cleared?{" "}

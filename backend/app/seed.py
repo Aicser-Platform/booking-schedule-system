@@ -13,6 +13,8 @@ ROLE_DEFINITIONS = [
     {"name": "superadmin", "description": "Super administrator role", "is_unique": True},
 ]
 
+ROLE_UNIQUES = {role["name"]: role["is_unique"] for role in ROLE_DEFINITIONS}
+
 PERMISSIONS = {
     "services:read": "View services",
     "services:manage": "Create, update, and delete services",
@@ -90,6 +92,20 @@ SEED_USERS = [
         "phone": None,
         "password": "Admin123!",
     },
+    {
+        "email": "staff@example.com",
+        "full_name": "Staff Member",
+        "role": "staff",
+        "phone": None,
+        "password": "Staff123!",
+    },
+    {
+        "email": "customer@example.com",
+        "full_name": "Demo Customer",
+        "role": "customer",
+        "phone": None,
+        "password": "Customer123!",
+    },
 ]
 
 
@@ -139,13 +155,16 @@ def _assign_role_permissions(conn) -> None:
             )
 
 
-def _seed_admin_account(conn, user: dict) -> None:
-    existing_role = conn.execute(
-        text("SELECT id FROM users WHERE role = :role LIMIT 1"),
-        {"role": user["role"]},
-    ).fetchone()
-    if existing_role:
-        return
+def _seed_user_account(conn, user: dict) -> None:
+    is_unique = ROLE_UNIQUES.get(user["role"], False)
+
+    if is_unique:
+        existing_role = conn.execute(
+            text("SELECT id FROM users WHERE role = :role LIMIT 1"),
+            {"role": user["role"]},
+        ).fetchone()
+        if existing_role:
+            return
 
     existing_email = conn.execute(
         text("SELECT id FROM users WHERE email = :email"),
@@ -186,7 +205,7 @@ def main() -> None:
         _upsert_permissions(conn)
         _assign_role_permissions(conn)
         for user in SEED_USERS:
-            _seed_admin_account(conn, user)
+            _seed_user_account(conn, user)
 
 
 if __name__ == "__main__":
