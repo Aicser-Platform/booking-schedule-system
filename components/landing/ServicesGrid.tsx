@@ -1,5 +1,7 @@
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ServiceCard } from "./ServiceCard";
 import type { Service } from "@/lib/types/landing";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,23 +12,100 @@ interface ServicesGridProps {
 }
 
 export function ServicesGrid({ services, isLoading }: ServicesGridProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollPrev, setCanScrollPrev] = useState(false);
+  const [canScrollNext, setCanScrollNext] = useState(false);
+
+  const updateScrollState = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const maxScrollLeft = container.scrollWidth - container.clientWidth;
+    setCanScrollPrev(container.scrollLeft > 4);
+    setCanScrollNext(container.scrollLeft < maxScrollLeft - 4);
+  }, []);
+
+  const getScrollAmount = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container) return 0;
+    const card = container.querySelector<HTMLElement>("[data-service-card]");
+    if (!card) {
+      return Math.floor(container.clientWidth * 0.9);
+    }
+    return card.offsetWidth + 24;
+  }, []);
+
+  const handleScroll = useCallback(
+    (direction: "prev" | "next") => {
+      const container = scrollRef.current;
+      if (!container) return;
+      const amount = getScrollAmount();
+      if (!amount) return;
+      container.scrollBy({
+        left: direction === "next" ? amount : -amount,
+        behavior: "smooth",
+      });
+    },
+    [getScrollAmount],
+  );
+
+  useEffect(() => {
+    updateScrollState();
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const handle = () => updateScrollState();
+    container.addEventListener("scroll", handle, { passive: true });
+    window.addEventListener("resize", handle);
+
+    return () => {
+      container.removeEventListener("scroll", handle);
+      window.removeEventListener("resize", handle);
+    };
+  }, [updateScrollState, services.length, isLoading]);
+
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex gap-6 rounded-3xl border border-border/60 bg-card/80 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.08)] backdrop-blur-sm"
+      <div className="relative">
+        <div className="mb-4 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            aria-label="Previous services"
+            disabled
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm opacity-40"
           >
-            <Skeleton className="aspect-square h-[180px] w-[180px] flex-shrink-0 rounded-2xl" />
-            <div className="flex flex-1 flex-col gap-3">
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-4 w-1/2" />
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-2/3" />
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            aria-label="Next services"
+            disabled
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm opacity-40"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div
+          ref={scrollRef}
+          className="flex gap-6 overflow-hidden pb-2"
+        >
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex-none w-[220px] sm:w-[240px] lg:w-[260px] xl:w-[280px]"
+            >
+              <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-border/60 bg-card/80 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.08)] backdrop-blur-sm">
+                <Skeleton className="aspect-[4/3] w-full rounded-2xl" />
+                <div className="mt-4 flex flex-1 flex-col gap-3">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-2/3" />
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     );
   }
@@ -46,16 +125,42 @@ export function ServicesGrid({ services, isLoading }: ServicesGridProps) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {services.map((service, index) => (
-        <div
-          key={service.id}
-          className="motion-safe:animate-fade-in"
-          style={{ animationDelay: `${index * 50}ms` }}
+    <div className="relative">
+      <div className="mb-4 flex items-center justify-end gap-2">
+        <button
+          type="button"
+          aria-label="Previous services"
+          onClick={() => handleScroll("prev")}
+          disabled={!canScrollPrev}
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <ServiceCard service={service} />
-        </div>
-      ))}
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          aria-label="Next services"
+          onClick={() => handleScroll("next")}
+          disabled={!canScrollNext}
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div
+        ref={scrollRef}
+        className="flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-smooth pb-2"
+      >
+        {services.map((service) => (
+          <div
+            key={service.id}
+            data-service-card
+            className="flex-none w-[220px] snap-start sm:w-[240px] lg:w-[260px] xl:w-[280px]"
+          >
+            <ServiceCard service={service} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

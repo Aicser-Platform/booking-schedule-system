@@ -7,9 +7,13 @@ import { Trash2 } from "lucide-react";
 
 type Props = {
   serviceId: string;
+  variant?: "card" | "list";
 };
 
-export default function DeleteServiceButton({ serviceId }: Props) {
+export default function DeleteServiceButton({
+  serviceId,
+  variant = "card",
+}: Props) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -39,6 +43,22 @@ export default function DeleteServiceButton({ serviceId }: Props) {
       setIsDeleting(false);
     }
   };
+
+  if (variant === "list") {
+    return (
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        aria-label="Archive service"
+        onClick={handleDelete}
+        disabled={isDeleting}
+        className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 transition-colors"
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    );
+  }
 
   return (
     <Button

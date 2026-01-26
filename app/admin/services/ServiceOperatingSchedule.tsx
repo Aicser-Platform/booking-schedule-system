@@ -450,7 +450,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
   ]);
 
   return (
-    <Card className="glass-card">
+    <Card className="glass-card border-border/40 bg-card/80">
       <CardHeader>
         <CardTitle>Service Operating Schedule</CardTitle>
       </CardHeader>
@@ -469,7 +469,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
                 }))
               }
               placeholder="e.g. UTC, Asia/Singapore"
-              className="mt-2 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="mt-2 w-full rounded-2xl border border-border/40 bg-background/80 px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -485,7 +485,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
                     .value as OperatingSchedule["rule_type"],
                 }))
               }
-              className="mt-2 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="mt-2 w-full rounded-2xl border border-border/40 bg-background/80 px-3 py-2 text-sm"
             >
               <option value="daily">Daily</option>
               <option value="weekly">Weekly</option>
@@ -505,7 +505,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
                   open_time: event.target.value,
                 }))
               }
-              className="mt-2 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="mt-2 w-full rounded-2xl border border-border/40 bg-background/80 px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -521,7 +521,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
                   close_time: event.target.value,
                 }))
               }
-              className="mt-2 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="mt-2 w-full rounded-2xl border border-border/40 bg-background/80 px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -537,7 +537,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
                   effective_from: event.target.value,
                 }))
               }
-              className="mt-2 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="mt-2 w-full rounded-2xl border border-border/40 bg-background/80 px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -553,12 +553,12 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
                   effective_to: event.target.value,
                 }))
               }
-              className="mt-2 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="mt-2 w-full rounded-2xl border border-border/40 bg-background/80 px-3 py-2 text-sm"
             />
           </div>
         </div>
 
-        <div className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
+        <div className="flex items-center justify-between rounded-2xl border border-border/40 bg-muted/40 px-4 py-3">
           <div>
             <p className="text-sm font-semibold">Active</p>
             <p className="text-xs text-muted-foreground">
@@ -574,7 +574,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={saveSchedule} disabled={isSaving}>
+          <Button onClick={saveSchedule} disabled={isSaving} className="rounded-full">
             {isSaving ? "Saving..." : "Save Schedule"}
           </Button>
           {!scheduleExists && (
@@ -595,7 +595,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
                   rule_type: event.target.value as OperatingRule["rule_type"],
                 }))
               }
-              className="rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="rounded-2xl border border-border/40 bg-background/80 px-3 py-2 text-sm"
             >
               <option value="weekly">Weekly (weekday)</option>
               <option value="monthly_day">Monthly (day of month)</option>
@@ -611,7 +611,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
                     weekday: Number(event.target.value),
                   }))
                 }
-                className="rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                className="rounded-2xl border border-border/40 bg-background/80 px-3 py-2 text-sm"
               >
                 {weekdays.map((day) => (
                   <option key={day.value} value={day.value}>
@@ -633,7 +633,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
                     month_day: Number(event.target.value),
                   }))
                 }
-                className="rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                className="rounded-2xl border border-border/40 bg-background/80 px-3 py-2 text-sm"
                 placeholder="Day of month"
               />
             )}
@@ -648,7 +648,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
                       nth: Number(event.target.value),
                     }))
                   }
-                  className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                  className="flex-1 rounded-2xl border border-border/40 bg-background/80 px-3 py-2 text-sm"
                 >
                   {nthOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -664,7 +664,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
                       weekday: Number(event.target.value),
                     }))
                   }
-                  className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                  className="flex-1 rounded-2xl border border-border/40 bg-background/80 px-3 py-2 text-sm"
                 >
                   {weekdays.map((day) => (
                     <option key={day.value} value={day.value}>
@@ -684,7 +684,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
                   start_time: event.target.value,
                 }))
               }
-              className="rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="rounded-2xl border border-border/40 bg-background/80 px-3 py-2 text-sm"
             />
             <input
               type="time"
@@ -695,10 +695,10 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
                   end_time: event.target.value,
                 }))
               }
-              className="rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="rounded-2xl border border-border/40 bg-background/80 px-3 py-2 text-sm"
             />
           </div>
-          <Button variant="outline" onClick={addRule}>
+          <Button variant="outline" onClick={addRule} className="rounded-full">
             Add Rule
           </Button>
 
@@ -707,7 +707,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
               {data.rules.map((rule, index) => (
                 <div
                   key={rule.id}
-                  className="flex items-center justify-between rounded-xl border border-border px-3 py-2 text-sm"
+                  className="flex items-center justify-between rounded-2xl border border-border/40 bg-card/80 px-3 py-2 text-sm"
                 >
                   <div>
                     <p className="font-medium">
@@ -746,7 +746,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
                   date: event.target.value,
                 }))
               }
-              className="rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="rounded-2xl border border-border/40 bg-background/80 px-3 py-2 text-sm"
             />
             <input
               type="text"
@@ -758,7 +758,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
                 }))
               }
               placeholder="Reason"
-              className="rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="rounded-2xl border border-border/40 bg-background/80 px-3 py-2 text-sm"
             />
             <input
               type="time"
@@ -769,7 +769,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
                   start_time: event.target.value,
                 }))
               }
-              className="rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="rounded-2xl border border-border/40 bg-background/80 px-3 py-2 text-sm"
             />
             <input
               type="time"
@@ -780,10 +780,10 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
                   end_time: event.target.value,
                 }))
               }
-              className="rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="rounded-2xl border border-border/40 bg-background/80 px-3 py-2 text-sm"
             />
           </div>
-          <div className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
+          <div className="flex items-center justify-between rounded-2xl border border-border/40 bg-muted/40 px-4 py-3">
             <div>
               <p className="text-sm font-semibold">Open on this date</p>
               <p className="text-xs text-muted-foreground">
@@ -797,7 +797,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
               }
             />
           </div>
-          <Button variant="outline" onClick={addException}>
+          <Button variant="outline" onClick={addException} className="rounded-full">
             Add Exception
           </Button>
 
@@ -806,7 +806,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
               {data.exceptions.map((ex) => (
                 <div
                   key={ex.id}
-                  className="flex items-center justify-between rounded-xl border border-border px-3 py-2 text-sm"
+                  className="flex items-center justify-between rounded-2xl border border-border/40 bg-card/80 px-3 py-2 text-sm"
                 >
                   <div>
                     <p className="font-medium">
@@ -840,7 +840,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
             <select
               value={previewRange}
               onChange={(event) => setPreviewRange(Number(event.target.value))}
-              className="rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="rounded-2xl border border-border/40 bg-background/80 px-3 py-2 text-sm"
             >
               <option value={30}>Next 30 days</option>
               <option value={60}>Next 60 days</option>
@@ -852,7 +852,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
             {previewDays.map((day) => (
               <div
                 key={day.date}
-                className="rounded-xl border border-border bg-white/70 px-3 py-2 text-sm"
+                className="rounded-2xl border border-border/40 bg-card/80 px-3 py-2 text-sm"
               >
                 <p className="font-semibold">
                   {day.date} • {day.label}

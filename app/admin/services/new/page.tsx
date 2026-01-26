@@ -1,9 +1,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import ServiceForm from "../ServiceForm";
+import { ServiceCreationLayout } from "../ServiceCreationLayout";
 
 type MeUser = {
   id: string;
@@ -15,14 +13,18 @@ async function getMe(): Promise<MeUser | null> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   const cookie = (await headers()).get("cookie") ?? "";
 
-  const res = await fetch(`${apiUrl}/api/auth/me`, {
-    method: "GET",
-    headers: { Cookie: cookie },
-    cache: "no-store",
-  });
+  try {
+    const res = await fetch(`${apiUrl}/api/auth/me`, {
+      method: "GET",
+      headers: { Cookie: cookie },
+      cache: "no-store",
+    });
 
-  if (!res.ok) return null;
-  return (await res.json()) as MeUser;
+    if (!res.ok) return null;
+    return (await res.json()) as MeUser;
+  } catch {
+    return null;
+  }
 }
 
 export default async function AdminServiceCreatePage() {
@@ -32,19 +34,7 @@ export default async function AdminServiceCreatePage() {
 
   return (
     <DashboardLayout>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">New Service</h2>
-          <p className="text-muted-foreground">
-            Create a service and define pricing rules
-          </p>
-        </div>
-        <Button asChild variant="outline">
-          <Link href="/admin/services">Back to Services</Link>
-        </Button>
-      </div>
-
-      <ServiceForm mode="create" />
+      <ServiceCreationLayout mode="create" />
     </DashboardLayout>
   );
 }

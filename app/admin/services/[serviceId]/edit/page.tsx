@@ -1,9 +1,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import Link from "next/link";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
-import { Button } from "@/components/ui/button";
-import ServiceForm from "../../ServiceForm";
+import { ServiceCreationLayout } from "../../ServiceCreationLayout";
 import ServiceStaffAssignments from "../../ServiceStaffAssignments";
 import ServiceOperatingSchedule from "../../ServiceOperatingSchedule";
 
@@ -18,12 +16,17 @@ type ServiceRow = {
   name: string;
   description?: string | null;
   image_url?: string | null;
+  image_urls?: string[] | null;
+  is_active: boolean;
   duration_minutes: number;
   price: number;
   deposit_amount: number;
   buffer_minutes: number;
   max_capacity: number;
-  is_active: boolean;
+  tags?: string[] | null;
+  inclusions?: string | null;
+  prep_notes?: string | null;
+  category?: string | null;
 };
 
 type StaffRow = {
@@ -44,70 +47,86 @@ type AssignedStaff = {
   assignment_id: string;
 };
 
-type RouteContext = {
-  params: { serviceId: string } | Promise<{ serviceId: string }>;
-};
-
 async function getMe(): Promise<MeUser | null> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   const cookie = (await headers()).get("cookie") ?? "";
 
-  const res = await fetch(`${apiUrl}/api/auth/me`, {
-    method: "GET",
-    headers: { Cookie: cookie },
-    cache: "no-store",
-  });
+  try {
+    const res = await fetch(`${apiUrl}/api/auth/me`, {
+      method: "GET",
+      headers: { Cookie: cookie },
+      cache: "no-store",
+    });
 
-  if (!res.ok) return null;
-  return (await res.json()) as MeUser;
+    if (!res.ok) return null;
+    return (await res.json()) as MeUser;
+  } catch {
+    return null;
+  }
 }
 
 async function getService(serviceId: string): Promise<ServiceRow | null> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   const cookie = (await headers()).get("cookie") ?? "";
 
-  const res = await fetch(`${apiUrl}/api/services/${serviceId}`, {
-    method: "GET",
-    headers: { Cookie: cookie },
-    cache: "no-store",
-  });
+  try {
+    const res = await fetch(`${apiUrl}/api/services/${serviceId}`, {
+      method: "GET",
+      headers: { Cookie: cookie },
+      cache: "no-store",
+    });
 
-  if (!res.ok) return null;
-  return (await res.json()) as ServiceRow;
+    if (!res.ok) return null;
+    return (await res.json()) as ServiceRow;
+  } catch {
+    return null;
+  }
 }
 
 async function getStaff(): Promise<StaffRow[]> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   const cookie = (await headers()).get("cookie") ?? "";
 
-  const res = await fetch(`${apiUrl}/api/admin/staff`, {
-    method: "GET",
-    headers: { Cookie: cookie },
-    cache: "no-store",
-  });
+  try {
+    const res = await fetch(`${apiUrl}/api/admin/staff`, {
+      method: "GET",
+      headers: { Cookie: cookie },
+      cache: "no-store",
+    });
 
-  if (!res.ok) return [];
-  return (await res.json()) as StaffRow[];
+    if (!res.ok) return [];
+    return (await res.json()) as StaffRow[];
+  } catch {
+    return [];
+  }
 }
 
 async function getAssignedStaff(serviceId: string): Promise<AssignedStaff[]> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   const cookie = (await headers()).get("cookie") ?? "";
 
-  const res = await fetch(`${apiUrl}/api/staff/${serviceId}/staff`, {
-    method: "GET",
-    headers: { Cookie: cookie },
-    cache: "no-store",
-  });
+  try {
+    const res = await fetch(`${apiUrl}/api/staff/${serviceId}/staff`, {
+      method: "GET",
+      headers: { Cookie: cookie },
+      cache: "no-store",
+    });
 
-  if (!res.ok) return [];
-  return (await res.json()) as AssignedStaff[];
+    if (!res.ok) return [];
+    return (await res.json()) as AssignedStaff[];
+  } catch {
+    return [];
+  }
 }
 
-export default async function AdminServiceEditPage({ params }: RouteContext) {
-  const resolvedParams = await Promise.resolve(params);
-  const { serviceId } = resolvedParams;
+export default async function AdminServiceEditPage({
+  params,
+}: {
+  params: Promise<{ serviceId: string }>;
+}) {
+  const { serviceId } = await params;
   const me = await getMe();
+
   if (!me) redirect("/auth/login");
   if (me.role !== "admin" && me.role !== "superadmin") redirect("/dashboard");
 
@@ -121,32 +140,18 @@ export default async function AdminServiceEditPage({ params }: RouteContext) {
 
   return (
     <DashboardLayout>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Edit Service</h2>
-          <p className="text-muted-foreground">
-            Update details and assign staff members
-          </p>
-        </div>
-        <Button asChild variant="outline">
-          <Link href="/admin/services">Back to Services</Link>
-        </Button>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <ServiceForm
+      <div className="space-y-8">
+        <ServiceCreationLayout
           mode="edit"
-          serviceId={service.id}
+          serviceId={serviceId}
           initialValues={service}
         />
         <ServiceStaffAssignments
-          serviceId={service.id}
+          serviceId={serviceId}
           staffOptions={staff}
           assignedStaff={assignedStaff}
         />
-      </div>
-      <div className="mt-6">
-        <ServiceOperatingSchedule serviceId={service.id} />
+        <ServiceOperatingSchedule serviceId={serviceId} />
       </div>
     </DashboardLayout>
   );

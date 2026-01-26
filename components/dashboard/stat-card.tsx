@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import type { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -11,27 +11,45 @@ interface StatCardProps {
   className?: string
 }
 
-export function StatCard({ title, value, icon: Icon, change, changeLabel, className }: StatCardProps) {
-  const isPositive = change && change > 0
+export function StatCard({
+  title,
+  value,
+  icon: Icon,
+  change,
+  changeLabel,
+  className,
+}: StatCardProps) {
+  const isPositive = change !== undefined && change > 0
 
   return (
-    <Card className={cn("glass-card", className)}>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-        <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
-          <Icon className="size-5 text-primary" />
+    <Card className={cn("glass-card p-0", className)}>
+      <CardContent className="flex items-start justify-between gap-4 p-6">
+        <div className="flex items-center gap-4">
+          <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <Icon className="size-5" />
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">{title}</p>
+            <p className="text-2xl font-semibold tracking-tight">{value}</p>
+            {change !== undefined && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {changeLabel || "from last month"}
+              </p>
+            )}
+          </div>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
         {change !== undefined && (
-          <p className="text-xs text-muted-foreground mt-1">
-            <span className={cn("font-medium", isPositive ? "text-green-500" : "text-red-500")}>
-              {isPositive ? "+" : ""}
-              {change}%
-            </span>{" "}
-            {changeLabel || "from last month"}
-          </p>
+          <span
+            className={cn(
+              "rounded-full px-2.5 py-1 text-xs font-semibold",
+              isPositive
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-rose-100 text-rose-700",
+            )}
+          >
+            {isPositive ? "+" : ""}
+            {change}%
+          </span>
         )}
       </CardContent>
     </Card>

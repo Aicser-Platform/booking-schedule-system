@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { Service } from "@/lib/types/landing";
 
@@ -10,22 +12,35 @@ interface ServiceCardProps {
 
 export function ServiceCard({ service }: ServiceCardProps) {
   const displayName = service.publicName || service.name;
-  const image = service.imageUrls?.[0] || service.imageUrl;
+  const images = useMemo(() => {
+    if (service.imageUrls && service.imageUrls.length > 0) {
+      return service.imageUrls;
+    }
+    if (service.imageUrl) return [service.imageUrl];
+    return [];
+  }, [service.imageUrls, service.imageUrl]);
+  const [imageIndex, setImageIndex] = useState(0);
   const depositAmount = service.depositAmount
     ? Number(service.depositAmount)
     : 0;
   const tags = new Set(service.tags ?? []);
+  const hasMultipleImages = images.length > 1;
+  const activeImage = images[imageIndex];
 
   if (depositAmount > 0) {
     tags.add("Deposit");
   }
 
+  useEffect(() => {
+    setImageIndex(0);
+  }, [images.length]);
+
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-3xl bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md">
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-        {image ? (
+        {activeImage ? (
           <img
-            src={image}
+            src={activeImage}
             alt={displayName}
             loading="lazy"
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
@@ -33,6 +48,36 @@ export function ServiceCard({ service }: ServiceCardProps) {
         ) : (
           <div className="flex h-full w-full items-center justify-center text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Service Image
+          </div>
+        )}
+        {hasMultipleImages && (
+          <div className="absolute bottom-4 right-4 flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="Previous image"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setImageIndex((prev) =>
+                  prev === 0 ? images.length - 1 : prev - 1,
+                );
+              }}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/90 text-foreground shadow-sm transition hover:bg-background"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Next image"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setImageIndex((prev) => (prev + 1) % images.length);
+              }}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/90 text-foreground shadow-sm transition hover:bg-background"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
         )}
         <div className="absolute right-4 top-4 rounded-full bg-background/95 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-foreground shadow-sm">

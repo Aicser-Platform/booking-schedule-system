@@ -5,22 +5,7 @@ import { useEffect, useState } from "react";
 
 import { useAuth } from "@/components/auth/auth-provider";
 import { Button } from "@/components/ui/button";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarTrigger,
-  SidebarInset,
-} from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,11 +14,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, Bell, User, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  roleIconMap,
   roleLabelMap,
   sidebarConfig,
   type Role,
@@ -41,9 +24,11 @@ import {
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
+  title?: string;
+  subtitle?: string;
 }
 
-export function DashboardLayout({ children }: DashboardLayoutProps) {
+export function DashboardLayout({ children, title, subtitle }: DashboardLayoutProps) {
   const { user, profile } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
@@ -54,8 +39,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }, []);
 
   const role = profile?.role || ((user as any)?.role as Role) || "customer";
+  const displayName =
+    profile?.full_name || user?.email?.split("@")[0] || "User";
+  const displayRole =
+    role === "superadmin" ? "Super Admin" : roleLabelMap[role];
 
-  const RoleIcon = roleIconMap[role];
+  const pageTitle =
+    title ||
+    pathname
+      .split("/")
+      .pop()
+      ?.replace(/-/g, " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase()) ||
+    "Dashboard";
 
   const handleLogout = async () => {
     try {
@@ -75,162 +71,119 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   const navigationItems = sidebarConfig[role] ?? sidebarConfig.customer;
+  const flatNavItems = navigationItems.flatMap((section) => section.items);
+  const topNavItems =
+    role === "admin" || role === "superadmin"
+      ? [
+          { title: "Dashboard", href: "/admin/dashboard" },
+          { title: "Services", href: "/admin/services" },
+          { title: "Bookings", href: "/admin/bookings" },
+          { title: "Clients", href: "/admin/staff" },
+          { title: "Settings", href: "/admin/settings" },
+        ]
+      : flatNavItems.map((item) => ({ title: item.title, href: item.href }));
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full">
-        <Sidebar>
-          <SidebarHeader className="px-4 py-4">
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-                <RoleIcon className="size-5" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-base font-semibold">BookingPro</span>
-                <span className="text-xs text-muted-foreground capitalize">
-                  {roleLabelMap[role]} Portal
-                </span>
-              </div>
+    <div className="min-h-screen bg-muted/30">
+      <header className="sticky top-0 z-20 border-b border-border/40 bg-background/95 backdrop-blur">
+        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
+          <div className="flex items-center gap-10">
+            <Link href="/" className="text-base font-semibold tracking-tight">
+              AICSER <span className="text-primary">Admin</span>
+            </Link>
+
+            <nav className="hidden items-center gap-6 md:flex">
+              {topNavItems.map((item) => {
+                const isActive =
+                  item.href === "/admin/dashboard"
+                    ? pathname === item.href
+                    : pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`text-sm font-medium transition ${
+                      isActive
+                        ? "text-primary"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {item.title}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="hidden w-64 md:block">
+              <Input
+                type="search"
+                placeholder="Search..."
+                className="h-10 rounded-full border-border/40 bg-card/90 shadow-sm focus-visible:ring-primary/30"
+              />
             </div>
-          </SidebarHeader>
-
-          <SidebarContent>
-            {navigationItems.map((section, idx) => (
-              <SidebarGroup key={idx}>
-                <SidebarGroupLabel>{section.title}</SidebarGroupLabel>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {section.items.map((item) => {
-                      const isActive = pathname === item.href;
-                      const itemKey = `${section.title}-${item.title}-${item.href}`;
-                      return (
-                        <SidebarMenuItem key={itemKey}>
-                          <SidebarMenuButton asChild isActive={isActive}>
-                            <Link href={item.href}>
-                              <item.icon />
-                              <span>{item.title}</span>
-                            </Link>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      );
-                    })}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
-            ))}
-          </SidebarContent>
-
-          <SidebarFooter className="mt-auto px-2 py-3">
-            <SidebarMenu>
-              <SidebarMenuItem>
-                {isMounted ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <SidebarMenuButton size="lg" className="w-full">
-                        <Avatar className="size-8">
-                          <AvatarFallback className="bg-primary text-primary-foreground">
-                            {profile?.full_name?.charAt(0).toUpperCase() ||
-                              user?.email?.charAt(0).toUpperCase() ||
-                              "U"}
-                          </AvatarFallback>
-                        </Avatar>
-
-                        <div className="flex flex-col items-start text-left">
-                          <span className="text-sm font-medium truncate max-w-[150px]">
-                            {profile?.full_name ||
-                              user?.email?.split("@")[0] ||
-                              "User"}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {user?.email || ""}
-                          </span>
-                        </div>
-                      </SidebarMenuButton>
-                    </DropdownMenuTrigger>
-
-                    <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-
-                      <DropdownMenuItem asChild>
-                        <Link href="/profile">
-                          <User className="mr-2 size-4" />
-                          Profile
-                        </Link>
-                      </DropdownMenuItem>
-
-                      <DropdownMenuItem asChild>
-                        <Link href="/settings">
-                          <Settings className="mr-2 size-4" />
-                          Settings
-                        </Link>
-                      </DropdownMenuItem>
-
-                      <DropdownMenuSeparator />
-
-                      <DropdownMenuItem onClick={handleLogout}>
-                        <LogOut className="mr-2 size-4" />
-                        Logout
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <SidebarMenuButton size="lg" className="w-full">
-                    <Avatar className="size-8">
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        {profile?.full_name?.charAt(0).toUpperCase() ||
-                          user?.email?.charAt(0).toUpperCase() ||
-                          "U"}
-                      </AvatarFallback>
-                    </Avatar>
-
-                    <div className="flex flex-col items-start text-left">
-                      <span className="text-sm font-medium truncate max-w-[150px]">
-                        {profile?.full_name ||
-                          user?.email?.split("@")[0] ||
-                          "User"}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {user?.email || ""}
-                      </span>
-                    </div>
-                  </SidebarMenuButton>
-                )}
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarFooter>
-        </Sidebar>
-
-        <SidebarInset>
-          <header className="sticky top-0 z-10 flex h-16 items-center gap-4 bg-white/80 backdrop-blur-md px-6">
-            <SidebarTrigger />
-            <div className="flex flex-1 items-center justify-between ml-4">
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-semibold">
-                  {pathname
-                    .split("/")
-                    .pop()
-                    ?.replace(/-/g, " ")
-                    .replace(/\b\w/g, (l) => l.toUpperCase()) || "Dashboard"}
-                </h1>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="relative rounded-lg"
-                >
-                  <Bell className="size-5" />
-                  <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-primary" />
+            {isMounted && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="rounded-full px-4 text-sm font-medium"
+                  >
+                    {displayName}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>{displayRole}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile">
+                      Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings">
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout}>
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="rounded-full md:hidden">
+                  Menu
                 </Button>
-              </div>
-            </div>
-          </header>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {topNavItems.map((item) => (
+                  <DropdownMenuItem key={item.href} asChild>
+                    <Link href={item.href}>{item.title}</Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </header>
 
-          <main className="flex-1 p-6 bg-gray-50">{children}</main>
-        </SidebarInset>
-      </div>
-    </SidebarProvider>
+      <main className="mx-auto w-full max-w-6xl px-6 py-8">
+        {(title || subtitle) && (
+          <div className="mb-6">
+            {subtitle ? (
+              <p className="text-sm text-muted-foreground">{subtitle}</p>
+            ) : null}
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {pageTitle}
+            </h1>
+          </div>
+        )}
+        {children}
+      </main>
+    </div>
   );
 }

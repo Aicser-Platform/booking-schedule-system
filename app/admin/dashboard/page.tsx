@@ -10,9 +10,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Calendar, DollarSign, Users, Star, TrendingUp } from "lucide-react";
+import {
+  Briefcase,
+  Calendar,
+  DollarSign,
+  Star,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 import { AnalyticsCharts } from "@/components/admin/analytics-charts";
 
 type MeUser = {
@@ -103,111 +109,128 @@ export default async function AdminDashboard() {
 
   // ── Stats ─────────────────────────────────────
   const stats = await getAdminDashboardStats();
+  const greetingName =
+    me.full_name || me.email?.split("@")[0] || "Administrator";
 
   return (
-    <DashboardLayout>
-      {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Bookings"
-          value={stats.totalBookings}
-          icon={Calendar}
-          change={12.5}
-          changeLabel="from last month"
-        />
-        <StatCard
-          title="Revenue"
-          value={`$${stats.totalRevenue.toFixed(0)}`}
-          icon={DollarSign}
-          change={8.2}
-          changeLabel="from last month"
-        />
-        <StatCard
-          title="Upcoming"
-          value={stats.upcomingBookings}
-          icon={TrendingUp}
-          change={4.1}
-          changeLabel="from last week"
-        />
-        <StatCard
-          title="Avg Rating"
-          value={stats.avgRating.toFixed(1)}
-          icon={Star}
-        />
-      </div>
+    <DashboardLayout
+      title="Overview"
+      subtitle={`Welcome back, ${greetingName}.`}
+    >
+      <div className="space-y-6">
+        {/* Stats Grid */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            title="Total Bookings"
+            value={stats.totalBookings}
+            icon={Calendar}
+            change={12.5}
+            changeLabel="from last month"
+          />
+          <StatCard
+            title="Revenue"
+            value={`$${stats.totalRevenue.toFixed(0)}`}
+            icon={DollarSign}
+            change={8.2}
+            changeLabel="from last month"
+          />
+          <StatCard
+            title="Upcoming"
+            value={stats.upcomingBookings}
+            icon={TrendingUp}
+            change={4.1}
+            changeLabel="from last week"
+          />
+          <StatCard
+            title="Avg Rating"
+            value={stats.avgRating.toFixed(1)}
+            icon={Star}
+          />
+        </div>
 
-      {/* Analytics */}
-      <AnalyticsCharts />
+        {/* Analytics */}
+        <AnalyticsCharts />
 
-      {/* System Overview */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle>Quick Stats</CardTitle>
-            <CardDescription>Key performance indicators</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                Cancellation Rate
-              </span>
-              <span className="text-sm font-medium">
-                {stats.cancellationRate.toFixed(1)}%
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                Total Reviews
-              </span>
-              <span className="text-sm font-medium">{stats.totalReviews}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                Active Users
-              </span>
-              <span className="text-sm font-medium">{stats.activeUsers}</span>
-            </div>
-          </CardContent>
-        </Card>
+        {/* System Overview */}
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card className="glass-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Quick Stats</CardTitle>
+              <CardDescription>Key performance indicators</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between rounded-xl border border-border/50 bg-card/80 px-4 py-3">
+                <span className="text-sm text-muted-foreground">
+                  Cancellation Rate
+                </span>
+                <span className="text-sm font-semibold">
+                  {stats.cancellationRate.toFixed(1)}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-border/50 bg-card/80 px-4 py-3">
+                <span className="text-sm text-muted-foreground">
+                  Total Reviews
+                </span>
+                <span className="text-sm font-semibold">
+                  {stats.totalReviews}
+                </span>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-border/50 bg-card/80 px-4 py-3">
+                <span className="text-sm text-muted-foreground">
+                  Active Users
+                </span>
+                <span className="text-sm font-semibold">
+                  {stats.activeUsers}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common administrative tasks</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Button
-              asChild
-              variant="outline"
-              className="w-full justify-start bg-transparent"
-            >
-              <Link href="/admin/services">
-                <Calendar className="mr-2 size-4" />
-                Manage Services
+          <Card className="glass-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Quick Tasks</CardTitle>
+              <CardDescription>Common administrative tasks</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              <Link
+                href="/admin/services"
+                className="group rounded-2xl border border-border/60 bg-card/80 p-4 transition hover:border-primary/40 hover:bg-primary/5"
+              >
+                <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Briefcase className="size-4" />
+                </div>
+                <p className="mt-3 text-sm font-semibold">Manage Services</p>
+                <p className="text-xs text-muted-foreground">
+                  Create or edit services
+                </p>
               </Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="w-full justify-start bg-transparent"
-            >
-              <Link href="/admin/bookings">
-                <Users className="mr-2 size-4" />
-                View All Bookings
+              <Link
+                href="/admin/bookings"
+                className="group rounded-2xl border border-border/60 bg-card/80 p-4 transition hover:border-primary/40 hover:bg-primary/5"
+              >
+                <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Calendar className="size-4" />
+                </div>
+                <p className="mt-3 text-sm font-semibold">View Bookings</p>
+                <p className="text-xs text-muted-foreground">
+                  Track upcoming appointments
+                </p>
               </Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="w-full justify-start bg-transparent"
-            >
-              <Link href="/admin/staff">
-                <Users className="mr-2 size-4" />
-                Manage Staff
+              <Link
+                href="/admin/staff"
+                className="group rounded-2xl border border-border/60 bg-card/80 p-4 transition hover:border-primary/40 hover:bg-primary/5"
+              >
+                <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Users className="size-4" />
+                </div>
+                <p className="mt-3 text-sm font-semibold">Manage Staff</p>
+                <p className="text-xs text-muted-foreground">
+                  Update roles and access
+                </p>
               </Link>
-            </Button>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </DashboardLayout>
   );
