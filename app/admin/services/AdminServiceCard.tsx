@@ -23,6 +23,7 @@ type ServiceRow = {
 
 type AdminServiceCardProps = {
   service: ServiceRow;
+  onDeleted?: (serviceId: string) => void;
 };
 
 // Service category mapping based on name patterns
@@ -40,7 +41,10 @@ const getServiceCategory = (
   return "WELLNESS";
 };
 
-export default function AdminServiceCard({ service }: AdminServiceCardProps) {
+export default function AdminServiceCard({
+  service,
+  onDeleted,
+}: AdminServiceCardProps) {
   const images = useMemo(() => {
     if (service.image_urls && service.image_urls.length > 0) {
       return service.image_urls;
@@ -200,7 +204,7 @@ export default function AdminServiceCard({ service }: AdminServiceCardProps) {
               Edit
             </Link>
           </Button>
-          <DeleteServiceButton serviceId={service.id} />
+          <DeleteServiceButton serviceId={service.id} onDeleted={onDeleted} />
         </div>
       </div>
     </div>

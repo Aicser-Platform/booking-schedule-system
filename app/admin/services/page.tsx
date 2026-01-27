@@ -3,9 +3,8 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/dashboard/empty-state";
 import { Plus } from "lucide-react";
-import AdminServiceCard from "./AdminServiceCard";
+import AdminServicesListClient from "./AdminServicesListClient";
 
 type MeUser = {
   id: string;
@@ -87,23 +86,7 @@ export default async function AdminServicesPage() {
           </Button>
         </div>
 
-        {services.length > 0 ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {services.map((service) => (
-              <AdminServiceCard key={service.id} service={service} />
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            icon={Plus}
-            title="No services yet"
-            description="Create your first service to start accepting bookings."
-            action={{
-              label: "Create First Service",
-              href: "/admin/services/new",
-            }}
-          />
-        )}
+        <AdminServicesListClient services={services} />
       </div>
     </DashboardLayout>
   );

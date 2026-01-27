@@ -22,9 +22,10 @@ type ServiceRow = {
 
 type ServiceListViewProps = {
   services: ServiceRow[];
+  onDeleted?: (serviceId: string) => void;
 };
 
-export function ServiceListView({ services }: ServiceListViewProps) {
+export function ServiceListView({ services, onDeleted }: ServiceListViewProps) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       {/* Header */}
@@ -42,7 +43,9 @@ export function ServiceListView({ services }: ServiceListViewProps) {
       {/* Services List */}
       <div className="divide-y divide-gray-200">
         {services.map((service, index) => {
-          const images = service.image_urls?.filter(Boolean) || (service.image_url ? [service.image_url] : []);
+          const images =
+            service.image_urls?.filter(Boolean) ||
+            (service.image_url ? [service.image_url] : []);
           const firstImage = images[0];
 
           return (
@@ -131,10 +134,11 @@ export function ServiceListView({ services }: ServiceListViewProps) {
                       <span className="sr-only">Edit service</span>
                     </Link>
                   </Button>
-                  
-                  <DeleteServiceButton 
-                    serviceId={service.id} 
+
+                  <DeleteServiceButton
+                    serviceId={service.id}
                     variant="list"
+                    onDeleted={onDeleted}
                   />
                 </div>
               </div>

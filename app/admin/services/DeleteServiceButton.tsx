@@ -8,11 +8,13 @@ import { Trash2 } from "lucide-react";
 type Props = {
   serviceId: string;
   variant?: "card" | "list";
+  onDeleted?: (serviceId: string) => void;
 };
 
 export default function DeleteServiceButton({
   serviceId,
   variant = "card",
+  onDeleted,
 }: Props) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -36,7 +38,11 @@ export default function DeleteServiceButton({
         throw new Error(data?.detail || data?.message || "Delete failed");
       }
 
-      router.refresh();
+      if (onDeleted) {
+        onDeleted(serviceId);
+      } else {
+        router.refresh();
+      }
     } catch {
       // Swallow errors for now; toast can be added later.
     } finally {
