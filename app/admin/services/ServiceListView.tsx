@@ -137,6 +137,7 @@ export function ServiceListView({ services, onDeleted }: ServiceListViewProps) {
 
                   <DeleteServiceButton
                     serviceId={service.id}
+                    serviceName={service.name}
                     variant="list"
                     onDeleted={onDeleted}
                   />

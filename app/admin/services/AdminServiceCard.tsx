@@ -204,7 +204,11 @@ export default function AdminServiceCard({
               Edit
             </Link>
           </Button>
-          <DeleteServiceButton serviceId={service.id} onDeleted={onDeleted} />
+          <DeleteServiceButton
+            serviceId={service.id}
+            serviceName={service.name}
+            onDeleted={onDeleted}
+          />
         </div>
       </div>
     </div>

@@ -114,7 +114,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
   });
 
   if (res.status === 204) {
-    return NextResponse.json({}, { status: 204 });
+    return new NextResponse(null, { status: 204 });
   }
 
   const data = await res.json().catch(() => ({}));
