@@ -84,8 +84,8 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
       : flatNavItems.map((item) => ({ title: item.title, href: item.href }));
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      <header className="sticky top-0 z-20 border-b border-border/40 bg-background/95 backdrop-blur">
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-20 border-b border-border/40 bg-background">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
           <div className="flex items-center gap-10">
             <Link href="/" className="text-base font-semibold tracking-tight">
@@ -102,7 +102,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`text-sm font-medium transition ${
+                    className={`text-sm font-medium motion-standard ${
                       isActive
                         ? "text-primary"
                         : "text-muted-foreground hover:text-foreground"
@@ -120,7 +120,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
               <Input
                 type="search"
                 placeholder="Search..."
-                className="h-10 rounded-full border-border/40 bg-card/90 shadow-sm focus-visible:ring-primary/30"
+                className="h-10 rounded-full border-border bg-card shadow-[var(--shadow-card)]"
               />
             </div>
             {isMounted && (

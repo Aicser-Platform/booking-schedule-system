@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -106,7 +106,7 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
 
   const scheduleExists = Boolean(data.schedule?.id);
 
-  const loadSchedule = async () => {
+  const loadSchedule = useCallback(async () => {
     setError(null);
     try {
       const res = await fetch(`/api/services/${serviceId}/operating-schedule`, {
@@ -127,11 +127,11 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load schedule");
     }
-  };
+  }, [serviceId]);
 
   useEffect(() => {
     void loadSchedule();
-  }, [serviceId]);
+  }, [loadSchedule]);
 
   const saveSchedule = async () => {
     setError(null);
@@ -574,7 +574,11 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={saveSchedule} disabled={isSaving} className="rounded-full">
+          <Button
+            onClick={saveSchedule}
+            disabled={isSaving}
+            className="rounded-full"
+          >
             {isSaving ? "Saving..." : "Save Schedule"}
           </Button>
           {!scheduleExists && (
@@ -797,7 +801,11 @@ export default function ServiceOperatingSchedule({ serviceId }: Props) {
               }
             />
           </div>
-          <Button variant="outline" onClick={addException} className="rounded-full">
+          <Button
+            variant="outline"
+            onClick={addException}
+            className="rounded-full"
+          >
             Add Exception
           </Button>
 

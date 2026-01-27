@@ -53,7 +53,7 @@ export default function DeleteServiceButton({
         aria-label="Archive service"
         onClick={handleDelete}
         disabled={isDeleting}
-        className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 transition-colors"
+        className="h-8 w-8 p-0 motion-standard motion-press hover:bg-red-50 hover:text-red-600 motion-reduce:transition-none"
       >
         <Trash2 className="h-4 w-4" />
       </Button>
@@ -68,7 +68,7 @@ export default function DeleteServiceButton({
       aria-label="Archive service"
       onClick={handleDelete}
       disabled={isDeleting}
-      className="rounded-lg border-gray-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors"
+      className="rounded-lg border-border motion-standard motion-press hover:border-red-200 hover:bg-red-50 hover:text-red-600 motion-reduce:transition-none"
     >
       <Trash2 className="size-4" />
     </Button>

@@ -63,7 +63,7 @@ export function PaymentForm({ booking }: PaymentFormProps) {
         <p className="mt-2 text-muted-foreground">Secure payment processing with ABA Payway</p>
       </div>
 
-      <Card>
+      <Card className="shadow-[var(--shadow-card)]">
         <CardHeader>
           <CardTitle>Booking Details</CardTitle>
         </CardHeader>
@@ -95,7 +95,7 @@ export function PaymentForm({ booking }: PaymentFormProps) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="shadow-[var(--shadow-card)]">
         <CardHeader>
           <CardTitle>Payment Summary</CardTitle>
         </CardHeader>

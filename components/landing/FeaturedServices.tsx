@@ -15,7 +15,7 @@ export function FeaturedServices({ services }: FeaturedServicesProps) {
   return (
     <section className="bg-background">
       <div className="mx-auto max-w-7xl px-6 py-20 lg:px-8">
-        <div className="rounded-[28px] bg-muted/30 p-6 shadow-sm sm:p-10">
+        <div className="rounded-[28px] border border-border bg-muted/30 p-6 shadow-[var(--shadow-card)] sm:p-10">
           <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:items-center">
             <div className="overflow-hidden rounded-3xl bg-muted">
               {image ? (
@@ -53,7 +53,7 @@ export function FeaturedServices({ services }: FeaturedServicesProps) {
               <div className="mt-8 flex flex-wrap items-center gap-4">
                 <Link
                   href={`/book/${highlight.id}?serviceId=${highlight.id}`}
-                  className="rounded-full bg-primary px-6 py-3 text-xs font-semibold uppercase tracking-[0.25em] text-primary-foreground shadow-sm transition hover:bg-primary/90"
+                  className="motion-standard motion-press rounded-full bg-primary px-6 py-3 text-xs font-semibold uppercase tracking-[0.25em] text-primary-foreground shadow-[var(--shadow-card)] hover:bg-primary/90 motion-reduce:transition-none"
                 >
                   Explore session
                 </Link>

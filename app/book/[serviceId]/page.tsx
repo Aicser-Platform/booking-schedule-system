@@ -107,10 +107,10 @@ export default async function BookServicePage({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container py-10 sm:py-16">
+      <div className="container motion-page py-10 sm:py-16">
         <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[1.6fr_1fr]">
           <div>
-            <div className="mb-8 overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
+            <div className="mb-8 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
               {(() => {
                 const images = service.image_urls?.length
                   ? service.image_urls
@@ -126,7 +126,7 @@ export default async function BookServicePage({
                     imageClassName="h-80 w-full object-cover"
                   />
                 ) : (
-                  <div className="h-80 w-full bg-gradient-to-br from-muted to-muted/50" />
+                  <div className="h-80 w-full bg-muted" />
                 );
               })()}
               <div className="p-6 sm:p-8">
@@ -174,7 +174,7 @@ export default async function BookServicePage({
 
             <div className="grid gap-4 md:grid-cols-2">
               {service.inclusions && (
-                <div className="rounded-xl border border-border bg-card p-5 shadow-md">
+                <div className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
                   <h2 className="text-sm font-semibold text-foreground">
                     Inclusions
                   </h2>
@@ -184,7 +184,7 @@ export default async function BookServicePage({
                 </div>
               )}
               {service.prep_notes && (
-                <div className="rounded-xl border border-border bg-card p-5 shadow-md">
+                <div className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
                   <h2 className="text-sm font-semibold text-foreground">
                     Prep Notes
                   </h2>
@@ -197,7 +197,7 @@ export default async function BookServicePage({
           </div>
 
           <div className="lg:sticky lg:top-8">
-            <div className="rounded-2xl border border-border bg-card p-6 shadow-lg">
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
               <p className="text-xs font-semibold uppercase tracking-wider text-primary">
                 Book now
               </p>

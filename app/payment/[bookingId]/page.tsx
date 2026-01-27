@@ -79,7 +79,7 @@ export default async function PaymentPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container py-12">
+      <div className="container motion-page py-12">
         <div className="mx-auto max-w-2xl">
           <PaymentForm booking={booking} />
         </div>

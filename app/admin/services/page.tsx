@@ -46,7 +46,7 @@ async function getServices(): Promise<ServiceRow[]> {
   const cookie = (await headers()).get("cookie") ?? "";
 
   try {
-    const res = await fetch(`${apiUrl}/api/services`, {
+    const res = await fetch(`${apiUrl}/api/services?active_only=false`, {
       method: "GET",
       headers: { Cookie: cookie },
       cache: "no-store",
@@ -68,42 +68,43 @@ export default async function AdminServicesPage() {
 
   return (
     <DashboardLayout>
-      <div className="mb-8 flex items-start justify-between">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-            Services
-          </h1>
-          <p className="text-gray-500">Manage all service offerings</p>
+      <div className="space-y-8 motion-page">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
+              Services
+            </h1>
+            <p className="text-muted-foreground">
+              Manage all service offerings
+            </p>
+          </div>
+
+          <Button asChild className="rounded-xl shadow-[var(--shadow-card)]">
+            <Link href="/admin/services/new">
+              <Plus className="mr-2 size-4" />
+              Add Service
+            </Link>
+          </Button>
         </div>
 
-        <Button
-          asChild
-          className="rounded-xl shadow-sm hover:shadow-md transition-shadow"
-        >
-          <Link href="/admin/services/new">
-            <Plus className="mr-2 size-4" />
-            Add Service
-          </Link>
-        </Button>
+        {services.length > 0 ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {services.map((service) => (
+              <AdminServiceCard key={service.id} service={service} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={Plus}
+            title="No services yet"
+            description="Create your first service to start accepting bookings."
+            action={{
+              label: "Create First Service",
+              href: "/admin/services/new",
+            }}
+          />
+        )}
       </div>
-
-      {services.length > 0 ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {services.map((service) => (
-            <AdminServiceCard key={service.id} service={service} />
-          ))}
-        </div>
-      ) : (
-        <EmptyState
-          icon={Plus}
-          title="No services yet"
-          description="Create your first service to start accepting bookings."
-          action={{
-            label: "Create First Service",
-            href: "/admin/services/new", // ✅ server-safe (no window usage)
-          }}
-        />
-      )}
     </DashboardLayout>
   );
 }

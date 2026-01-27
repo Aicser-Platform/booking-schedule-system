@@ -5,9 +5,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 
 export function Navbar() {
   const { user } = useAuth();
+  const prefersReducedMotion = useReducedMotion();
   const role = user?.role;
   const isStaff = role === "staff";
   const isAdmin = role === "admin" || role === "superadmin";
@@ -29,11 +31,14 @@ export function Navbar() {
   ) => {
     event.preventDefault();
     const target = document.getElementById(targetId);
-    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    target?.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+      block: "start",
+    });
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-background/95 backdrop-blur">
+    <header className="sticky top-0 z-50 border-b border-border/60 bg-background">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
@@ -53,21 +58,21 @@ export function Navbar() {
           <Link
             href="#services"
             onClick={(event) => handleScroll(event, "services")}
-            className="transition-colors hover:text-foreground"
+            className="motion-standard hover:text-foreground"
           >
             Services
           </Link>
           <Link
             href="#about"
             onClick={(event) => handleScroll(event, "about")}
-            className="transition-colors hover:text-foreground"
+            className="motion-standard hover:text-foreground"
           >
             About
           </Link>
           <Link
             href="#contact"
             onClick={(event) => handleScroll(event, "contact")}
-            className="transition-colors hover:text-foreground"
+            className="motion-standard hover:text-foreground"
           >
             Contact
           </Link>

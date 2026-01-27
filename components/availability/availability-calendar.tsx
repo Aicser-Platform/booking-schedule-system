@@ -160,8 +160,8 @@ export function AvailabilityCalendar({
 
   const items = calendar?.items ?? [];
   const warnings = calendar?.warnings ?? [];
-  const utilization = calendar?.utilization_by_day ?? [];
   const utilizationSummary = useMemo(() => {
+    const utilization = calendar?.utilization_by_day ?? [];
     const byDate = new Map<string, { total: number; count: number }>();
     utilization.forEach((entry) => {
       const dateKey = entry.date;
@@ -174,7 +174,7 @@ export function AvailabilityCalendar({
       date,
       utilization: stats.count ? stats.total / stats.count : 0,
     }));
-  }, [utilization]);
+  }, [calendar?.utilization_by_day]);
 
   return (
     <div className="space-y-6">

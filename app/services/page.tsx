@@ -88,8 +88,8 @@ export default async function ServicesPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container py-10 sm:py-16">
-        <div className="mb-12 grid gap-8 rounded-2xl border border-border bg-card p-8 shadow-lg md:grid-cols-[1.5fr_1fr]">
+      <div className="container motion-page py-10 sm:py-16">
+        <div className="mb-12 grid gap-8 rounded-2xl border border-border bg-card p-8 shadow-[var(--shadow-card)] md:grid-cols-[1.5fr_1fr]">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-primary">
               Services Catalog
@@ -110,12 +110,12 @@ export default async function ServicesPage({
               </span>
             </div>
           </div>
-          <div className="flex flex-col justify-center gap-4 rounded-xl border border-border bg-muted/50 p-6">
+          <div className="flex flex-col justify-center gap-4 rounded-xl border border-border bg-muted/50 p-6 shadow-[var(--shadow-card)]">
             <p className="text-sm font-semibold text-foreground">Highlights</p>
             <div className="flex flex-col gap-2.5 text-sm text-muted-foreground">
-              <span>• Transparent pricing with deposit badges</span>
-              <span>• Filter by duration, price, and category</span>
-              <span>• Book only services with eligible staff</span>
+              <span>- Transparent pricing with deposit badges</span>
+              <span>- Filter by duration, price, and category</span>
+              <span>- Book only services with eligible staff</span>
             </div>
             <Button asChild className="mt-2 w-fit">
               <Link href="#services">Explore services</Link>
@@ -123,7 +123,7 @@ export default async function ServicesPage({
           </div>
         </div>
 
-        <form className="mb-12 rounded-xl border border-border bg-card p-6 shadow-md">
+        <form className="mb-12 rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
             <div className="lg:col-span-2">
               <label className="text-sm font-medium text-foreground">
@@ -133,7 +133,7 @@ export default async function ServicesPage({
                 name="search"
                 defaultValue={filters.search ?? ""}
                 placeholder="Search services"
-                className="mt-1.5 w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="mt-1.5 w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm placeholder:text-muted-foreground shadow-sm motion-standard motion-reduce:transition-none focus-visible:border-ring focus:outline-none"
               />
             </div>
             <div>
@@ -143,7 +143,7 @@ export default async function ServicesPage({
               <select
                 name="category"
                 defaultValue={filters.category ?? ""}
-                className="mt-1.5 w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="mt-1.5 w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm shadow-sm motion-standard motion-reduce:transition-none focus-visible:border-ring focus:outline-none"
               >
                 <option value="">All</option>
                 {categories.map((category) => (
@@ -159,14 +159,14 @@ export default async function ServicesPage({
                   name="require_staff"
                   type="checkbox"
                   defaultChecked={filters.require_staff === "true"}
-                  className="h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-primary/20"
+                  className="h-4 w-4 rounded border-input text-primary motion-standard motion-reduce:transition-none"
                 />
                 Bookable only
               </label>
             </div>
           </div>
           <details className="mt-5 group">
-            <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+            <summary className="motion-standard cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
               Advanced Filters
             </summary>
             <div className="mt-4 grid gap-4 sm:grid-cols-2 md:grid-cols-4">
@@ -180,7 +180,7 @@ export default async function ServicesPage({
                   step="0.01"
                   defaultValue={filters.min_price ?? ""}
                   placeholder="$0.00"
-                  className="mt-1.5 w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="mt-1.5 w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm placeholder:text-muted-foreground shadow-sm motion-standard motion-reduce:transition-none focus-visible:border-ring focus:outline-none"
                 />
               </div>
               <div>
@@ -193,7 +193,7 @@ export default async function ServicesPage({
                   step="0.01"
                   defaultValue={filters.max_price ?? ""}
                   placeholder="$999.99"
-                  className="mt-1.5 w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="mt-1.5 w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm placeholder:text-muted-foreground shadow-sm motion-standard motion-reduce:transition-none focus-visible:border-ring focus:outline-none"
                 />
               </div>
               <div>
@@ -205,7 +205,7 @@ export default async function ServicesPage({
                   type="number"
                   defaultValue={filters.min_duration ?? ""}
                   placeholder="0 min"
-                  className="mt-1.5 w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="mt-1.5 w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm placeholder:text-muted-foreground shadow-sm motion-standard motion-reduce:transition-none focus-visible:border-ring focus:outline-none"
                 />
               </div>
               <div>
@@ -217,7 +217,7 @@ export default async function ServicesPage({
                   type="number"
                   defaultValue={filters.max_duration ?? ""}
                   placeholder="480 min"
-                  className="mt-1.5 w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="mt-1.5 w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm placeholder:text-muted-foreground shadow-sm motion-standard motion-reduce:transition-none focus-visible:border-ring focus:outline-none"
                 />
               </div>
             </div>
@@ -237,7 +237,7 @@ export default async function ServicesPage({
             {services.map((service) => (
               <Card
                 key={service.id}
-                className="group flex h-full flex-col overflow-hidden border border-border bg-card shadow-md transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:border-primary/50"
+                className="group flex h-full flex-col overflow-hidden border border-border bg-card motion-card motion-reduce:transition-none"
               >
                 <div className="relative">
                   {(() => {
@@ -255,11 +255,11 @@ export default async function ServicesPage({
                         imageClassName="h-48 w-full object-cover"
                       />
                     ) : (
-                      <div className="h-48 w-full bg-gradient-to-br from-muted to-muted/50" />
+                      <div className="h-48 w-full bg-muted" />
                     );
                   })()}
                   {service.category && (
-                    <span className="absolute left-4 top-4 rounded-full border border-border bg-background/95 px-3 py-1 text-xs font-semibold text-foreground shadow-md backdrop-blur-sm">
+                    <span className="absolute left-4 top-4 rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground shadow-[var(--shadow-card)]">
                       {service.category}
                     </span>
                   )}
@@ -295,7 +295,7 @@ export default async function ServicesPage({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-2xl font-bold text-slate-900">
+                        <span className="text-2xl font-bold text-foreground">
                           ${service.price}
                         </span>
                       </div>

@@ -61,17 +61,17 @@ export default function AdminServiceCard({ service }: AdminServiceCardProps) {
     : "0.00";
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl bg-card/90 shadow-sm border border-border/40 transition-all duration-300 hover:shadow-lg">
+    <div className="group relative overflow-hidden rounded-2xl border border-border bg-card motion-card motion-reduce:transition-none">
       {/* Image Section */}
       <div className="relative aspect-[4/3] overflow-hidden">
         {activeImage ? (
           <img
             src={activeImage}
             alt={service.name}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className="h-full w-full object-cover motion-standard motion-safe:group-hover:scale-[1.02] motion-reduce:transform-none"
           />
         ) : (
-          <div className="h-full w-full bg-gradient-to-br from-muted/50 to-muted flex items-center justify-center">
+          <div className="flex h-full w-full items-center justify-center bg-muted">
             <Eye className="h-12 w-12 text-muted-foreground" />
           </div>
         )}
@@ -79,7 +79,7 @@ export default function AdminServiceCard({ service }: AdminServiceCardProps) {
         {/* Status Badge */}
         <div className="absolute top-3 right-3">
           <Badge
-            className={`text-xs font-medium px-3 py-1 rounded-full border-2 ${
+            className={`text-xs font-medium px-3 py-1 rounded-full border ${
               service.is_active
                 ? "bg-green-100 text-green-800 border-green-300"
                 : "bg-orange-100 text-orange-800 border-orange-300"
@@ -103,7 +103,7 @@ export default function AdminServiceCard({ service }: AdminServiceCardProps) {
                     prev === 0 ? images.length - 1 : prev - 1,
                   );
                 }}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-card/90 text-foreground shadow-lg transition-all hover:bg-card hover:shadow-xl"
+                className="motion-standard motion-press flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-[var(--shadow-card)] hover:bg-muted motion-reduce:transition-none"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -115,12 +115,12 @@ export default function AdminServiceCard({ service }: AdminServiceCardProps) {
                   event.stopPropagation();
                   setImageIndex((prev) => (prev + 1) % images.length);
                 }}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-card/90 text-foreground shadow-lg transition-all hover:bg-card hover:shadow-xl"
+                className="motion-standard motion-press flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-[var(--shadow-card)] hover:bg-muted motion-reduce:transition-none"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
-            <div className="absolute bottom-4 left-4 rounded-full bg-card/90 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-foreground shadow-lg">
+            <div className="absolute bottom-4 left-4 rounded-full border border-border bg-background px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-foreground shadow-[var(--shadow-card)]">
               {imageIndex + 1}/{images.length}
             </div>
           </>
@@ -159,7 +159,7 @@ export default function AdminServiceCard({ service }: AdminServiceCardProps) {
         {/* Details Grid */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Duration
             </p>
             <p className="text-sm font-bold text-foreground">
@@ -167,7 +167,7 @@ export default function AdminServiceCard({ service }: AdminServiceCardProps) {
             </p>
           </div>
           <div className="space-y-1">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Price
             </p>
             <p className="text-sm font-bold text-foreground">
@@ -193,7 +193,7 @@ export default function AdminServiceCard({ service }: AdminServiceCardProps) {
           <Button
             asChild
             size="sm"
-            className="flex-1 rounded-full bg-primary text-primary-foreground transition-all duration-200 hover:bg-primary/90"
+            className="flex-1 rounded-full shadow-[var(--shadow-card)]"
           >
             <Link href={`/admin/services/${service.id}/edit`}>
               <Edit className="mr-2 size-4" />

@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 
 import AuthTransition from "@/components/auth/auth-transition";
@@ -12,29 +12,13 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const [isReady, setIsReady] = useState(true);
-  const [useFallback, setUseFallback] = useState(true);
-
-  useEffect(() => {
-    if (typeof document === "undefined") {
-      return;
-    }
-
+  const [useFallback] = useState(() => {
+    if (typeof document === "undefined") return true;
     const doc = document as Document & {
       startViewTransition?: (callback: () => void) => void;
     };
-    setUseFallback(!doc.startViewTransition);
-  }, []);
-
-  useEffect(() => {
-    if (!useFallback) {
-      return;
-    }
-
-    setIsReady(false);
-    const raf = requestAnimationFrame(() => setIsReady(true));
-    return () => cancelAnimationFrame(raf);
-  }, [pathname]);
+    return !doc.startViewTransition;
+  });
 
   return (
     <div className="relative overflow-hidden">
@@ -43,9 +27,7 @@ export default function AuthLayout({
         key={pathname}
         className={`relative z-10 transform transition duration-500 ease-out ${
           useFallback
-            ? isReady
-              ? "opacity-100 translate-y-0"
-              : "opacity-0 translate-y-3"
+            ? "animate-in fade-in slide-in-from-bottom-2"
             : "opacity-100 translate-y-0"
         }`}
       >

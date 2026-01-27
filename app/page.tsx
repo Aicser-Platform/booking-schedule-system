@@ -10,6 +10,7 @@ import { TrustSection } from "@/components/landing/TrustSection";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Footer } from "@/components/landing/Footer";
 import { useScrollAnimation } from "@/hooks/use-scroll-animation";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import type { Category, FilterState, Service } from "@/lib/types/landing";
 
 type ApiService = {
@@ -39,6 +40,7 @@ export default function HomePage() {
   const servicesSection = useScrollAnimation({ threshold: 0.1 });
   const trustSection = useScrollAnimation({ threshold: 0.2 });
   const howItWorksSection = useScrollAnimation({ threshold: 0.2 });
+  const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -130,7 +132,7 @@ export default function HomePage() {
   const handleCategorySelect = (categoryId: string) => {
     setFilters((prev) => ({ ...prev, category: categoryId }));
     document.getElementById("services")?.scrollIntoView({
-      behavior: "smooth",
+      behavior: prefersReducedMotion ? "auto" : "smooth",
       block: "start",
     });
   };
@@ -160,7 +162,7 @@ export default function HomePage() {
   }, [services]);
 
   return (
-    <div className="min-h-screen bg-[#fbfaf7]">
+    <div className="min-h-screen bg-background">
       <Navbar />
       <main>
         <HeroSection />
@@ -172,10 +174,8 @@ export default function HomePage() {
         <section id="services" className="bg-background">
           <div
             ref={servicesSection.ref}
-            className={`mx-auto max-w-7xl px-6 py-16 transition-all duration-700 lg:px-8 ${
-              servicesSection.isVisible
-                ? "translate-y-0 opacity-100"
-                : "translate-y-8 opacity-0"
+            className={`mx-auto max-w-7xl px-6 py-16 lg:px-8 motion-safe:transition-opacity motion-safe:duration-[var(--motion-duration-page)] motion-safe:ease-[var(--motion-ease-standard)] motion-reduce:transition-none ${
+              servicesSection.isVisible ? "opacity-100" : "opacity-0"
             }`}
           >
             <div className="mb-12 text-center">
@@ -201,10 +201,8 @@ export default function HomePage() {
         <div
           id="about"
           ref={trustSection.ref}
-          className={`transition-all duration-700 ${
-            trustSection.isVisible
-              ? "translate-y-0 opacity-100"
-              : "translate-y-8 opacity-0"
+          className={`motion-safe:transition-opacity motion-safe:duration-[var(--motion-duration-page)] motion-safe:ease-[var(--motion-ease-standard)] motion-reduce:transition-none ${
+            trustSection.isVisible ? "opacity-100" : "opacity-0"
           }`}
         >
           <TrustSection />
@@ -212,10 +210,8 @@ export default function HomePage() {
 
         <div
           ref={howItWorksSection.ref}
-          className={`transition-all duration-700 delay-100 ${
-            howItWorksSection.isVisible
-              ? "translate-y-0 opacity-100"
-              : "translate-y-8 opacity-0"
+          className={`motion-safe:transition-opacity motion-safe:duration-[var(--motion-duration-page)] motion-safe:ease-[var(--motion-ease-standard)] motion-reduce:transition-none ${
+            howItWorksSection.isVisible ? "opacity-100" : "opacity-0"
           }`}
         >
           <HowItWorks />

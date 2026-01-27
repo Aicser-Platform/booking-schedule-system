@@ -59,7 +59,7 @@ export function ServiceCreationLayout({
       : "Update service details and preview the customer-facing card.";
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 motion-page">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">

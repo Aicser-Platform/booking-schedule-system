@@ -77,8 +77,8 @@ export default async function AdminBookingsPage() {
   const bookings = await getBookings();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <header className="border-b bg-background/95 backdrop-blur">
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border/60 bg-background">
         <div className="container flex h-16 items-center justify-between">
           <h1 className="text-xl font-bold">All Bookings</h1>
           <Button asChild variant="outline">
@@ -87,11 +87,11 @@ export default async function AdminBookingsPage() {
         </div>
       </header>
 
-      <div className="container py-8">
+      <div className="container motion-page py-8">
         <div className="space-y-4">
           {bookings.length > 0 ? (
             bookings.map((booking) => (
-              <Card key={booking.id}>
+              <Card key={booking.id} className="shadow-[var(--shadow-card)]">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div>
@@ -168,7 +168,7 @@ export default async function AdminBookingsPage() {
               </Card>
             ))
           ) : (
-            <Card>
+            <Card className="shadow-[var(--shadow-card)]">
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Calendar className="mb-4 h-12 w-12 text-muted-foreground" />
                 <p className="text-lg font-medium">No bookings found</p>

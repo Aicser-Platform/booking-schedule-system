@@ -64,6 +64,13 @@ export default function EnhancedServiceForm({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  const initialTags = Array.isArray(initialValues?.tags)
+    ? initialValues.tags.join(", ")
+    : (initialValues?.tags ?? "");
+  const initialImages = Array.isArray(initialValues?.image_urls)
+    ? initialValues.image_urls
+    : [];
+
   const [formData, setFormData] = useState<ServiceFormData>({
     name: initialValues?.name || "",
     description: initialValues?.description || "",
@@ -74,9 +81,9 @@ export default function EnhancedServiceForm({
     max_capacity: initialValues?.max_capacity || 1,
     buffer_minutes: initialValues?.buffer_minutes || 15,
     image_url: initialValues?.image_url || "",
-    image_urls: initialValues?.image_urls || [],
+    image_urls: initialImages,
     is_active: initialValues?.is_active ?? true,
-    tags: initialValues?.tags || "",
+    tags: typeof initialTags === "string" ? initialTags : "",
     inclusions: initialValues?.inclusions || "",
     prep_notes: initialValues?.prep_notes || "",
   });
@@ -192,7 +199,9 @@ export default function EnhancedServiceForm({
 
       const method = mode === "create" ? "POST" : "PUT";
       const normalizedImages = formData.image_urls.filter(Boolean);
-      const normalizedTags = formData.tags
+      const normalizedTags = (
+        typeof formData.tags === "string" ? formData.tags : ""
+      )
         .split(",")
         .map((tag) => tag.trim())
         .filter(Boolean);
@@ -206,8 +215,7 @@ export default function EnhancedServiceForm({
         max_capacity: Number(formData.max_capacity) || 1,
         buffer_minutes: Number(formData.buffer_minutes) || 0,
         image_urls: normalizedImages.length > 0 ? normalizedImages : null,
-        image_url:
-          (normalizedImages[0] ?? formData.image_url.trim()) || null,
+        image_url: (normalizedImages[0] ?? formData.image_url.trim()) || null,
         is_active: formData.is_active,
         tags: normalizedTags.length > 0 ? normalizedTags : null,
         inclusions: formData.inclusions.trim() || null,
@@ -226,7 +234,9 @@ export default function EnhancedServiceForm({
       const responseData = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(
-          responseData?.detail || responseData?.message || "Failed to save service",
+          responseData?.detail ||
+            responseData?.message ||
+            "Failed to save service",
         );
       }
 
@@ -491,7 +501,7 @@ export default function EnhancedServiceForm({
 
       <div>
         <label className="block text-sm font-semibold text-gray-900 mb-2">
-          What's Included
+          What&apos;s Included
         </label>
         <Textarea
           value={formData.inclusions}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye, Star, Clock, Users } from "lucide-react";
@@ -25,7 +25,9 @@ export function ServicePreviewCard({
   service,
   onDataChange,
 }: ServicePreviewCardProps) {
-  const [imageError, setImageError] = useState(false);
+  const [failedImages, setFailedImages] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   // Default image when no image is provided
   const defaultImage =
@@ -42,19 +44,26 @@ export function ServicePreviewCard({
   const displayDuration = service.duration_minutes || 60;
   const displayCategory = service.category || "WELLNESS";
 
-  useEffect(() => {
-    setImageError(false);
-  }, [displayImage]);
+  const imageError = failedImages.has(displayImage);
+
+  const handleImageError = () => {
+    if (failedImages.has(displayImage)) return;
+    setFailedImages((prev) => {
+      const next = new Set(prev);
+      next.add(displayImage);
+      return next;
+    });
+  };
 
   return (
-    <div className="w-full max-w-sm mx-auto overflow-hidden rounded-3xl border border-border/40 bg-card/90 shadow-sm">
+    <div className="mx-auto w-full max-w-sm overflow-hidden rounded-3xl border border-border bg-card shadow-[var(--shadow-card)]">
       {/* Image */}
       <div className="relative aspect-[4/3] overflow-hidden">
         <img
           src={imageError ? defaultImage : displayImage}
           alt={displayName}
           className="h-full w-full object-cover"
-          onError={() => setImageError(true)}
+          onError={handleImageError}
         />
 
         {/* Featured Badge */}
@@ -67,7 +76,7 @@ export function ServicePreviewCard({
         {/* Status Badge */}
         <div className="absolute top-3 right-3">
           <Badge
-            className={`text-xs font-medium px-3 py-1 rounded-full border-2 ${
+            className={`text-xs font-medium px-3 py-1 rounded-full border ${
               service.is_active
                 ? "bg-emerald-100 text-emerald-700 border-emerald-200"
                 : "bg-amber-100 text-amber-700 border-amber-200"
@@ -122,7 +131,7 @@ export function ServicePreviewCard({
 
         {/* Action Button */}
         <div className="pt-2">
-          <Button className="w-full rounded-full bg-primary text-primary-foreground font-semibold py-2.5 transition-all duration-200 hover:bg-primary/90">
+          <Button className="w-full rounded-full py-2.5 font-semibold shadow-[var(--shadow-card)]">
             Book Now
           </Button>
         </div>

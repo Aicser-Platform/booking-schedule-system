@@ -31,7 +31,7 @@ export function CategoryGrid({
             <button
               key={category.id}
               onClick={() => onCategorySelect?.(category.id)}
-              className="group relative overflow-hidden rounded-3xl bg-muted/50 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              className="group relative overflow-hidden rounded-3xl border border-border bg-muted motion-card motion-safe:active:scale-[0.98] motion-reduce:active:scale-100 motion-reduce:transition-none"
             >
               {category.imageUrl ? (
                 <img
@@ -45,8 +45,8 @@ export function CategoryGrid({
                   Category Image
                 </div>
               )}
-              <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10" />
-              <div className="absolute inset-x-4 bottom-4 rounded-full bg-background/95 px-4 py-2 text-center text-xs font-semibold uppercase tracking-wide text-foreground shadow-sm">
+              <div className="absolute inset-0 bg-black/0 motion-standard group-hover:bg-black/10" />
+              <div className="absolute inset-x-4 bottom-4 rounded-full border border-border bg-background px-4 py-2 text-center text-xs font-semibold uppercase tracking-wide text-foreground shadow-[var(--shadow-card)]">
                 {category.name}
               </div>
             </button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -24,26 +24,25 @@ export function ServiceCard({ service }: ServiceCardProps) {
     ? Number(service.depositAmount)
     : 0;
   const tags = new Set(service.tags ?? []);
-  const hasMultipleImages = images.length > 1;
-  const activeImage = images[imageIndex];
+  const totalImages = images.length;
+  const hasMultipleImages = totalImages > 1;
+  const displayIndex =
+    totalImages === 0 ? 0 : Math.min(imageIndex, totalImages - 1);
+  const activeImage = images[displayIndex];
 
   if (depositAmount > 0) {
     tags.add("Deposit");
   }
 
-  useEffect(() => {
-    setImageIndex(0);
-  }, [images.length]);
-
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-3xl bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md">
+    <article className="group flex h-full flex-col overflow-hidden rounded-3xl border border-border bg-card motion-card motion-reduce:transition-none">
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         {activeImage ? (
           <img
             src={activeImage}
             alt={displayName}
             loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            className="h-full w-full object-cover motion-standard motion-safe:group-hover:scale-[1.02] motion-reduce:transform-none"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
@@ -58,11 +57,11 @@ export function ServiceCard({ service }: ServiceCardProps) {
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                setImageIndex((prev) =>
-                  prev === 0 ? images.length - 1 : prev - 1,
+                setImageIndex(() =>
+                  displayIndex === 0 ? totalImages - 1 : displayIndex - 1,
                 );
               }}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/90 text-foreground shadow-sm transition hover:bg-background"
+              className="motion-standard motion-press flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-[var(--shadow-card)] hover:bg-muted motion-reduce:transition-none"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -72,28 +71,30 @@ export function ServiceCard({ service }: ServiceCardProps) {
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                setImageIndex((prev) => (prev + 1) % images.length);
+                setImageIndex(() => (displayIndex + 1) % totalImages);
               }}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/90 text-foreground shadow-sm transition hover:bg-background"
+              className="motion-standard motion-press flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-[var(--shadow-card)] hover:bg-muted motion-reduce:transition-none"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
         )}
-        <div className="absolute right-4 top-4 rounded-full bg-background/95 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-foreground shadow-sm">
+        <div className="absolute right-4 top-4 rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold uppercase tracking-wide text-foreground shadow-[var(--shadow-card)]">
           ${service.price}
         </div>
         {tags.size > 0 && (
           <div className="absolute left-4 top-4 flex flex-wrap gap-2">
-            {Array.from(tags).slice(0, 1).map((tag) => (
-              <Badge
-                key={tag}
-                variant="outline"
-                className="rounded-full border-border bg-background/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-foreground/70"
-              >
-                {tag}
-              </Badge>
-            ))}
+            {Array.from(tags)
+              .slice(0, 1)
+              .map((tag) => (
+                <Badge
+                  key={tag}
+                  variant="outline"
+                  className="rounded-full border-border bg-background px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-foreground/70"
+                >
+                  {tag}
+                </Badge>
+              ))}
           </div>
         )}
       </div>
@@ -119,7 +120,7 @@ export function ServiceCard({ service }: ServiceCardProps) {
         <div className="mt-5 flex items-center justify-end">
           <Link
             href={`/book/${service.id}?serviceId=${service.id}`}
-            className="text-xs font-semibold uppercase tracking-[0.25em] text-primary transition-colors hover:text-primary/80"
+            className="motion-standard text-xs font-semibold uppercase tracking-[0.25em] text-primary hover:text-primary/80"
           >
             Book now
           </Link>

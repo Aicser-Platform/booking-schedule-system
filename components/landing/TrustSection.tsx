@@ -36,11 +36,10 @@ export function TrustSection() {
                   name: "Jacob P.",
                 },
               ].map((review) => (
-                <div
-                  key={review.name}
-                  className="rounded-2xl bg-muted/40 p-5"
-                >
-                  <p className="text-sm text-foreground">"{review.quote}"</p>
+                <div key={review.name} className="rounded-2xl bg-muted/40 p-5">
+                  <p className="text-sm text-foreground">
+                    &ldquo;{review.quote}&rdquo;
+                  </p>
                   <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                     {review.name}
                   </p>

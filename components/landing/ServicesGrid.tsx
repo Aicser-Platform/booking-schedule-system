@@ -71,7 +71,7 @@ export function ServicesGrid({ services, isLoading }: ServicesGridProps) {
             type="button"
             aria-label="Previous services"
             disabled
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm opacity-40"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground opacity-40 shadow-[var(--shadow-card)]"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -79,22 +79,19 @@ export function ServicesGrid({ services, isLoading }: ServicesGridProps) {
             type="button"
             aria-label="Next services"
             disabled
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm opacity-40"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground opacity-40 shadow-[var(--shadow-card)]"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
 
-        <div
-          ref={scrollRef}
-          className="flex gap-6 overflow-hidden pb-2"
-        >
+        <div ref={scrollRef} className="flex gap-6 overflow-hidden pb-2">
           {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
               className="flex-none w-[220px] sm:w-[240px] lg:w-[260px] xl:w-[280px]"
             >
-              <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-border/60 bg-card/80 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.08)] backdrop-blur-sm">
+              <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
                 <Skeleton className="aspect-[4/3] w-full rounded-2xl" />
                 <div className="mt-4 flex flex-1 flex-col gap-3">
                   <Skeleton className="h-4 w-3/4" />
@@ -112,7 +109,7 @@ export function ServicesGrid({ services, isLoading }: ServicesGridProps) {
 
   if (services.length === 0) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center rounded-3xl border border-border/60 bg-muted/10">
+      <div className="flex min-h-[400px] items-center justify-center rounded-3xl border border-dashed border-border bg-muted/30">
         <div className="text-center">
           <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-muted-foreground/10" />
           <p className="text-lg font-semibold">No services found</p>
@@ -132,7 +129,7 @@ export function ServicesGrid({ services, isLoading }: ServicesGridProps) {
           aria-label="Previous services"
           onClick={() => handleScroll("prev")}
           disabled={!canScrollPrev}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+          className="motion-standard motion-press flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-[var(--shadow-card)] hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -141,7 +138,7 @@ export function ServicesGrid({ services, isLoading }: ServicesGridProps) {
           aria-label="Next services"
           onClick={() => handleScroll("next")}
           disabled={!canScrollNext}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+          className="motion-standard motion-press flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-[var(--shadow-card)] hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -149,7 +146,7 @@ export function ServicesGrid({ services, isLoading }: ServicesGridProps) {
 
       <div
         ref={scrollRef}
-        className="flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-smooth pb-2"
+        className="flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-smooth pb-2 motion-reduce:scroll-auto"
       >
         {services.map((service) => (
           <div

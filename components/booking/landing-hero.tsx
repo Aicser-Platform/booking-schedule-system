@@ -23,7 +23,7 @@ export function LandingHeroAnimation() {
         </p>
         <p className="mt-3 text-3xl font-bold text-white">Book in seconds</p>
         <p className="mt-2 text-slate-300">
-          Pick a service, choose a time, and you're set.
+          Pick a service, choose a time, and you&apos;re set.
         </p>
         <div className="mt-8 flex items-center justify-center">
           <div className="h-48 w-48 drop-shadow-lg">

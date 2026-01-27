@@ -9,6 +9,8 @@ import { Calendar } from "@/components/ui/calendar"
 import { useRouter } from "next/navigation"
 import { Clock, DollarSign, User } from "lucide-react"
 import { format } from "date-fns"
+import { cn } from "@/lib/utils"
+import { TimeSlotSkeletonGrid } from "@/components/skeletons/TimeSlotSkeletonGrid"
 
 interface BookingFormProps {
   service: any
@@ -24,6 +26,17 @@ export function BookingForm({ service, staff, userId }: BookingFormProps) {
   const [isLoadingSlots, setIsLoadingSlots] = useState(false)
   const [isBooking, setIsBooking] = useState(false)
   const router = useRouter()
+
+  const steps = [
+    { id: "service", label: "Service" },
+    { id: "staff", label: "Staff" },
+    { id: "time", label: "Time" },
+    { id: "confirm", label: "Confirm" },
+  ] as const
+
+  let currentStepIndex = 1
+  if (selectedStaff) currentStepIndex = 2
+  if (selectedSlot) currentStepIndex = 3
 
   const fetchAvailableSlots = async (date: Date, staffId: string) => {
     setIsLoadingSlots(true)
@@ -111,9 +124,38 @@ export function BookingForm({ service, staff, userId }: BookingFormProps) {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <div className="lg:col-span-2">
-        <Card>
+    <div className="space-y-6">
+      <div className="rounded-lg border border-border bg-muted/30 p-4">
+        <ol className="grid grid-cols-2 gap-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:grid-cols-4">
+          {steps.map((step, index) => {
+            const isComplete = index < currentStepIndex
+            const isActive = index === currentStepIndex
+
+            return (
+              <li key={step.id} className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "flex h-5 w-5 items-center justify-center rounded-full border text-[11px]",
+                    isComplete || isActive
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background text-muted-foreground",
+                  )}
+                  aria-current={isActive ? "step" : undefined}
+                >
+                  {index + 1}
+                </span>
+                <span className={isActive ? "text-foreground" : undefined}>
+                  {step.label}
+                </span>
+              </li>
+            )
+          })}
+        </ol>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <Card className="shadow-[var(--shadow-card)]">
           <CardHeader>
             <CardTitle>Select Date and Time</CardTitle>
             <CardDescription>Choose your preferred appointment slot</CardDescription>
@@ -135,6 +177,12 @@ export function BookingForm({ service, staff, userId }: BookingFormProps) {
               </Select>
             </div>
 
+            {!selectedStaff && (
+              <div className="rounded-md border border-dashed border-border bg-muted/20 p-3 text-xs text-muted-foreground">
+                Choose a staff member to enable dates and time slots.
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>Select Date</Label>
               <Calendar
@@ -147,17 +195,23 @@ export function BookingForm({ service, staff, userId }: BookingFormProps) {
             </div>
 
             {selectedDate && selectedStaff && (
-              <div className="space-y-2">
-                <Label>Available Time Slots</Label>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Available Time Slots</Label>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {format(selectedDate, "EEE, MMM d")}
+                  </p>
+                </div>
                 {isLoadingSlots ? (
-                  <p className="text-sm text-muted-foreground">Loading available slots...</p>
+                  <TimeSlotSkeletonGrid />
                 ) : availableSlots.length > 0 ? (
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                     {availableSlots.map((slot) => (
                       <Button
                         key={slot.start_time}
                         variant={selectedSlot === slot.start_time ? "default" : "outline"}
-                        className="w-full"
+                        className="w-full justify-center motion-standard motion-press motion-reduce:transition-none"
+                        aria-pressed={selectedSlot === slot.start_time}
                         onClick={() => setSelectedSlot(slot.start_time)}
                       >
                         {format(new Date(slot.start_time), "HH:mm")}
@@ -165,7 +219,9 @@ export function BookingForm({ service, staff, userId }: BookingFormProps) {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No available slots for this date.</p>
+                  <div className="rounded-md border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+                    No available slots for this date. Try another day.
+                  </div>
                 )}
               </div>
             )}
@@ -173,8 +229,8 @@ export function BookingForm({ service, staff, userId }: BookingFormProps) {
         </Card>
       </div>
 
-      <div>
-        <Card className="sticky top-6">
+        <div>
+          <Card className="sticky top-6 shadow-[var(--shadow-card)]">
           <CardHeader>
             <CardTitle>Booking Summary</CardTitle>
           </CardHeader>
@@ -231,5 +287,6 @@ export function BookingForm({ service, staff, userId }: BookingFormProps) {
         </Card>
       </div>
     </div>
+  </div>
   )
 }

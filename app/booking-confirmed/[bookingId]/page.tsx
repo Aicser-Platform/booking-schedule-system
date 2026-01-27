@@ -80,9 +80,9 @@ export default async function BookingConfirmedPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container py-12">
+      <div className="container motion-page py-12">
         <div className="mx-auto max-w-2xl">
-          <Card className="border border-border bg-card shadow-lg">
+          <Card className="border border-border bg-card shadow-[var(--shadow-card)]">
             <CardHeader className="text-center pb-6">
               <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-50 border-2 border-green-200">
                 <CheckCircle2 className="h-10 w-10 text-green-600" />
@@ -134,17 +134,19 @@ export default async function BookingConfirmedPage({
 
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-5">
                 <p className="font-semibold text-foreground mb-2">
-                  What's Next?
+                  What&apos;s Next?
                 </p>
                 <ul className="space-y-1.5 text-sm text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <span className="text-primary mt-0.5">•</span>
-                    <span>You'll receive a confirmation email shortly</span>
+                    <span>
+                      You&apos;ll receive a confirmation email shortly
+                    </span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-primary mt-0.5">•</span>
                     <span>
-                      We'll send you a reminder before your appointment
+                      We&apos;ll send you a reminder before your appointment
                     </span>
                   </li>
                   <li className="flex items-start gap-2">

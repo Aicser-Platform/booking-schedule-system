@@ -1,7 +1,13 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
-import { CheckCircle2 } from "lucide-react"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { CheckCircle2 } from "lucide-react";
 
 export default function SignupSuccessPage() {
   return (
@@ -14,15 +20,18 @@ export default function SignupSuccessPage() {
                 <CheckCircle2 className="h-8 w-8 text-green-600" />
               </div>
               <CardTitle className="text-2xl">Check Your Email</CardTitle>
-              <CardDescription>We've sent you a confirmation link</CardDescription>
+              <CardDescription>
+                We&apos;ve sent you a confirmation link
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-center text-sm text-muted-foreground">
-                Thank you for signing up! Please check your email inbox and click the confirmation link to activate your
-                account.
+                Thank you for signing up! Please check your email inbox and
+                click the confirmation link to activate your account.
               </p>
               <p className="text-center text-sm text-muted-foreground">
-                Once confirmed, you'll be able to sign in and start booking appointments.
+                Once confirmed, you&apos;ll be able to sign in and start booking
+                appointments.
               </p>
               <div className="pt-4">
                 <Button asChild className="w-full">
@@ -34,5 +43,5 @@ export default function SignupSuccessPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

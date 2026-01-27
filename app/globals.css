@@ -554,6 +554,25 @@
     0.88 0 0
   ); /* Darker for better visibility (was 0.922) */
   --sidebar-ring: oklch(0.65 0 0); /* Darker (was 0.708) */
+
+  /* Motion tokens - subtle, fast, and functional */
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-duration-standard: 180ms;
+  --motion-duration-press: 100ms;
+  --motion-duration-overlay: 220ms;
+  --motion-duration-page: 180ms;
+  --motion-press-scale: 0.98;
+  --motion-distance-hover: 2px;
+  --motion-distance-overlay: 8px;
+
+  /* Shadow tokens - minimal depth change on hover */
+  --shadow-card:
+    0 1px 2px rgba(15, 23, 42, 0.06),
+    0 8px 16px rgba(15, 23, 42, 0.06);
+  --shadow-card-hover:
+    0 2px 4px rgba(15, 23, 42, 0.08),
+    0 12px 20px rgba(15, 23, 42, 0.1);
+  --shadow-overlay: 0 16px 40px rgba(15, 23, 42, 0.18);
 }
 
 .dark {
@@ -795,5 +814,169 @@
 
   .dark .glass-card {
     @apply bg-card/80 shadow-[0_18px_45px_rgba(0,0,0,0.35)];
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  :where(
+      button,
+      a,
+      [role="button"],
+      input,
+      select,
+      textarea,
+      [tabindex]
+    ):focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px hsl(var(--ring)),
+      0 0 0 4px hsl(var(--background));
+    transition:
+      box-shadow var(--motion-duration-standard) var(--motion-ease-standard);
+  }
+}
+
+@layer utilities {
+  /* Consistent motion primitives */
+  .motion-standard {
+    transition-property:
+      transform,
+      opacity,
+      background-color,
+      color,
+      border-color,
+      box-shadow;
+    transition-duration: var(--motion-duration-standard);
+    transition-timing-function: var(--motion-ease-standard);
+  }
+
+  .motion-press {
+    transition-property: transform;
+    transition-duration: var(--motion-duration-press);
+    transition-timing-function: var(--motion-ease-standard);
+  }
+
+  .motion-press:active {
+    transform: scale(var(--motion-press-scale));
+  }
+
+  .motion-card {
+    transition-property:
+      transform,
+      box-shadow,
+      border-color,
+      background-color;
+    transition-duration: var(--motion-duration-standard);
+    transition-timing-function: var(--motion-ease-standard);
+    box-shadow: var(--shadow-card);
+  }
+
+  .motion-card:hover {
+    transform: translateY(calc(var(--motion-distance-hover) * -1));
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  .motion-surface {
+    opacity: 0;
+    transform: translate3d(0, var(--motion-distance-overlay), 0);
+    transition-property: transform, opacity;
+    transition-duration: var(--motion-duration-overlay);
+    transition-timing-function: var(--motion-ease-standard);
+    will-change: transform, opacity;
+  }
+
+  .motion-surface[data-state="open"] {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+
+  .motion-surface[data-side="top"] {
+    transform: translate3d(0, calc(var(--motion-distance-overlay) * -1), 0);
+  }
+
+  .motion-surface[data-side="left"] {
+    transform: translate3d(calc(var(--motion-distance-overlay) * -1), 0, 0);
+  }
+
+  .motion-surface[data-side="right"] {
+    transform: translate3d(var(--motion-distance-overlay), 0, 0);
+  }
+
+  .motion-overlay {
+    opacity: 0;
+    transition:
+      opacity var(--motion-duration-overlay) var(--motion-ease-standard);
+  }
+
+  .motion-overlay[data-state="open"] {
+    opacity: 1;
+  }
+
+  .motion-page {
+    animation: motion-fade var(--motion-duration-page) var(--motion-ease-standard)
+      both;
+  }
+
+  @keyframes motion-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* Override flashy utilities with calm, solid defaults */
+  .gradient-text {
+    background: none !important;
+    color: hsl(var(--primary));
+    -webkit-text-fill-color: currentColor;
+  }
+
+  .animate-fade-in,
+  .animate-zoom-in,
+  .animate-slide-up,
+  .animate-scale-in,
+  .animate-fade-in-left,
+  .animate-fade-in-right {
+    animation: motion-fade var(--motion-duration-page) var(--motion-ease-standard)
+      both;
+    transform: none;
+  }
+
+  .float-soft,
+  .animate-gradient,
+  .animate-blink {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-duration-standard: 1ms;
+    --motion-duration-press: 1ms;
+    --motion-duration-overlay: 1ms;
+    --motion-duration-page: 1ms;
+    --motion-distance-hover: 0px;
+    --motion-distance-overlay: 0px;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+
+  .motion-page {
+    animation: none !important;
+  }
+
+  .motion-card:hover,
+  .motion-press:active,
+  .motion-surface,
+  .motion-surface[data-state="open"] {
+    transform: none !important;
   }
 }

@@ -21,8 +21,10 @@ export default function AuthTransition() {
       return;
     }
 
-    setIsActive(true);
-    lottieRef.current?.goToAndPlay(0, true);
+    const raf = requestAnimationFrame(() => {
+      setIsActive(true);
+      lottieRef.current?.goToAndPlay(0, true);
+    });
 
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -33,6 +35,7 @@ export default function AuthTransition() {
     }, TRANSITION_MS);
 
     return () => {
+      cancelAnimationFrame(raf);
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }

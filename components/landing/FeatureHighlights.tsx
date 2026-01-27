@@ -72,8 +72,8 @@ export function FeatureHighlights() {
             Built for your peace of mind
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-sm text-muted-foreground">
-            We've designed every detail to make booking effortless, secure, and
-            enjoyable.
+            We&apos;ve designed every detail to make booking effortless, secure,
+            and enjoyable.
           </p>
         </div>
 
