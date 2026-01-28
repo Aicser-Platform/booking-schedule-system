@@ -3,46 +3,21 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Upload,
-  Image as ImageIcon,
-  X,
-  Plus,
-  Camera,
-  DollarSign,
-  Clock,
-  Users,
-  FileText,
-  Settings,
-} from "lucide-react";
-
-type ServiceFormData = {
-  name: string;
-  description: string;
-  category: string;
-  duration_minutes: number;
-  price: number;
-  deposit_amount: number;
-  max_capacity: number;
-  buffer_minutes: number;
-  image_url: string;
-  image_urls: string[];
-  is_active: boolean;
-  tags: string;
-  inclusions: string;
-  prep_notes: string;
-};
+import { Camera, DollarSign, FileText, Settings, Calendar } from "lucide-react";
+import type {
+  OperatingExceptionDraft,
+  OperatingRuleDraft,
+  OperatingScheduleDraft,
+} from "./service-form/types";
+import type {
+  ServiceFormData,
+  UpdateServiceField,
+} from "./service-form/enhanced/types";
+import EnhancedBasicInformation from "./service-form/enhanced/EnhancedBasicInformation";
+import EnhancedPricingDuration from "./service-form/enhanced/EnhancedPricingDuration";
+import EnhancedServiceMedia from "./service-form/enhanced/EnhancedServiceMedia";
+import EnhancedPromotion from "./service-form/enhanced/EnhancedPromotion";
+import EnhancedSchedule from "./service-form/enhanced/EnhancedSchedule";
 
 type EnhancedServiceFormProps = {
   mode: "create" | "edit";
@@ -87,6 +62,39 @@ export default function EnhancedServiceForm({
     inclusions: initialValues?.inclusions || "",
     prep_notes: initialValues?.prep_notes || "",
   });
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState<OperatingScheduleDraft>({
+    timezone: "UTC",
+    rule_type: "daily",
+    open_time: "",
+    close_time: "",
+    effective_from: "",
+    effective_to: "",
+    is_active: true,
+  });
+  const [scheduleRules, setScheduleRules] = useState<OperatingRuleDraft[]>([]);
+  const [scheduleExceptions, setScheduleExceptions] = useState<
+    OperatingExceptionDraft[]
+  >([]);
+  const [ruleDraft, setRuleDraft] = useState<OperatingRuleDraft>({
+    id: "",
+    rule_type: "weekly",
+    weekday: 1,
+    month_day: 1,
+    nth: 1,
+    start_time: "",
+    end_time: "",
+  });
+  const [exceptionDraft, setExceptionDraft] = useState<OperatingExceptionDraft>(
+    {
+      id: "",
+      date: "",
+      is_open: false,
+      start_time: "",
+      end_time: "",
+      reason: "",
+    },
+  );
 
   // Update preview whenever form data changes
   useEffect(() => {
@@ -104,10 +112,22 @@ export default function EnhancedServiceForm({
     }
   }, [formData, onPreviewUpdate]);
 
-  const updateField = <K extends keyof ServiceFormData>(
-    field: K,
-    value: ServiceFormData[K],
-  ) => {
+  useEffect(() => {
+    if (
+      scheduleForm.rule_type === "weekly" &&
+      ruleDraft.rule_type !== "weekly"
+    ) {
+      setRuleDraft((prev) => ({ ...prev, rule_type: "weekly" }));
+    }
+    if (
+      scheduleForm.rule_type === "monthly" &&
+      ruleDraft.rule_type === "weekly"
+    ) {
+      setRuleDraft((prev) => ({ ...prev, rule_type: "monthly_day" }));
+    }
+  }, [ruleDraft.rule_type, scheduleForm.rule_type]);
+
+  const updateField: UpdateServiceField = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -187,6 +207,16 @@ export default function EnhancedServiceForm({
       icon: Settings,
       description: "Visibility and promotional settings",
     },
+    ...(mode === "create"
+      ? [
+          {
+            id: "schedule",
+            title: "Operating Schedule",
+            icon: Calendar,
+            description: "Optional availability and exceptions",
+          },
+        ]
+      : []),
   ];
 
   const handleSubmit = async () => {
@@ -240,6 +270,94 @@ export default function EnhancedServiceForm({
         );
       }
 
+      const createdServiceId = responseData?.id ?? serviceId;
+
+      if (mode === "create" && scheduleEnabled && createdServiceId) {
+        const scheduleRes = await fetch(
+          `/api/services/${createdServiceId}/operating-schedule`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              timezone: scheduleForm.timezone,
+              rule_type: scheduleForm.rule_type,
+              open_time: scheduleForm.open_time || null,
+              close_time: scheduleForm.close_time || null,
+              effective_from: scheduleForm.effective_from || null,
+              effective_to: scheduleForm.effective_to || null,
+              is_active: scheduleForm.is_active,
+            }),
+          },
+        );
+
+        if (!scheduleRes.ok) {
+          const scheduleData = await scheduleRes.json().catch(() => ({}));
+          throw new Error(
+            scheduleData?.detail ||
+              scheduleData?.message ||
+              "Failed to save schedule",
+          );
+        }
+
+        const rulesToSave =
+          scheduleForm.rule_type === "daily" ? [] : scheduleRules;
+
+        for (const rule of rulesToSave) {
+          const ruleRes = await fetch(
+            `/api/services/${createdServiceId}/operating-schedule/rules`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({
+                rule_type: rule.rule_type,
+                weekday: rule.rule_type === "weekly" ? rule.weekday : null,
+                month_day:
+                  rule.rule_type === "monthly_day" ? rule.month_day : null,
+                nth: rule.rule_type === "monthly_nth_weekday" ? rule.nth : null,
+                start_time: rule.start_time || null,
+                end_time: rule.end_time || null,
+              }),
+            },
+          );
+          if (!ruleRes.ok) {
+            const ruleData = await ruleRes.json().catch(() => ({}));
+            throw new Error(
+              ruleData?.detail ||
+                ruleData?.message ||
+                "Failed to save schedule rule",
+            );
+          }
+        }
+
+        for (const ex of scheduleExceptions) {
+          const exRes = await fetch(
+            `/api/services/${createdServiceId}/operating-schedule/exceptions`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({
+                date: ex.date,
+                is_open: ex.is_open,
+                start_time: ex.start_time || null,
+                end_time: ex.end_time || null,
+                reason: ex.reason || null,
+              }),
+            },
+          );
+          if (!exRes.ok) {
+            const exData = await exRes.json().catch(() => ({}));
+            throw new Error(
+              exData?.detail ||
+                exData?.message ||
+                "Failed to save schedule exception",
+            );
+          }
+        }
+      }
+
       router.push("/admin/services");
       router.refresh();
     } catch (err) {
@@ -248,270 +366,6 @@ export default function EnhancedServiceForm({
       setIsSaving(false);
     }
   };
-
-  const renderBasicInformation = () => (
-    <div className="space-y-6">
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            Service Name
-          </label>
-          <Input
-            value={formData.name}
-            onChange={(e) => updateField("name", e.target.value)}
-            placeholder="e.g. Signature Hydrafacial"
-            className="text-lg font-medium"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            Service Description
-          </label>
-          <Textarea
-            value={formData.description}
-            onChange={(e) => updateField("description", e.target.value)}
-            placeholder="Describe your service offering..."
-            rows={4}
-            className="resize-none"
-          />
-          <div className="text-xs text-gray-500 mt-1">
-            {formData.description.length}/250 characters
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            Category
-          </label>
-          <Select
-            value={formData.category}
-            onValueChange={(value) => updateField("category", value)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="WELLNESS">Wellness</SelectItem>
-              <SelectItem value="THERAPY">Therapy</SelectItem>
-              <SelectItem value="RITUAL">Ritual</SelectItem>
-              <SelectItem value="BEAUTY">Beauty</SelectItem>
-              <SelectItem value="FITNESS">Fitness</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderPricingDuration = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            Price ($)
-          </label>
-          <div className="relative">
-            <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              type="number"
-              value={formData.price}
-              onChange={(e) => updateField("price", Number(e.target.value))}
-              className="pl-10"
-              min="0"
-              step="0.01"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            Duration (minutes)
-          </label>
-          <div className="relative">
-            <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              type="number"
-              value={formData.duration_minutes}
-              onChange={(e) =>
-                updateField("duration_minutes", Number(e.target.value))
-              }
-              className="pl-10"
-              min="1"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            Deposit Amount ($)
-          </label>
-          <Input
-            type="number"
-            value={formData.deposit_amount}
-            onChange={(e) =>
-              updateField("deposit_amount", Number(e.target.value))
-            }
-            min="0"
-            step="0.01"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
-            Max Capacity
-          </label>
-          <div className="relative">
-            <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              type="number"
-              value={formData.max_capacity}
-              onChange={(e) =>
-                updateField("max_capacity", Number(e.target.value))
-              }
-              className="pl-10"
-              min="1"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-semibold text-gray-900 mb-2">
-          Buffer Time (minutes)
-        </label>
-        <Input
-          type="number"
-          value={formData.buffer_minutes}
-          onChange={(e) =>
-            updateField("buffer_minutes", Number(e.target.value))
-          }
-          min="0"
-        />
-        <div className="text-xs text-gray-500 mt-1">
-          Time between appointments for setup/cleanup
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderServiceMedia = () => (
-    <div className="space-y-6">
-      <div>
-        <label className="block text-sm font-semibold text-gray-900 mb-4">
-          Service Images
-        </label>
-
-        <div className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-            <Input
-              placeholder="Enter image URL"
-              value={formData.image_url}
-              onChange={(e) => updateField("image_url", e.target.value)}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => addImageUrl(formData.image_url)}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-700">
-              Upload from your device
-            </label>
-            <Input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  handleFileUpload(file);
-                }
-                e.currentTarget.value = "";
-              }}
-              disabled={isUploading}
-            />
-            {isUploading && (
-              <p className="text-xs text-gray-500">Uploading image...</p>
-            )}
-            {uploadError && (
-              <p className="text-xs text-red-600">{uploadError}</p>
-            )}
-          </div>
-
-          {formData.image_urls.length > 0 && (
-            <div className="flex flex-wrap gap-3">
-              {formData.image_urls.map((url) => (
-                <div
-                  key={url}
-                  className="relative w-24 h-20 rounded-lg overflow-hidden border border-gray-200"
-                >
-                  <img
-                    src={url}
-                    alt="Service"
-                    className="w-full h-full object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeImageUrl(url)}
-                    className="absolute top-1 right-1 rounded-full bg-white/80 p-1 text-gray-600 hover:text-gray-900"
-                    aria-label="Remove image"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderPromotion = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between rounded-2xl border border-border/40 bg-muted/40 p-4">
-        <div>
-          <h4 className="font-semibold text-gray-900">Service Status</h4>
-          <p className="text-sm text-gray-600">
-            Control whether this service is visible to customers
-          </p>
-        </div>
-        <Switch
-          checked={formData.is_active}
-          onCheckedChange={(checked) => updateField("is_active", checked)}
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-semibold text-gray-900 mb-2">
-          Tags (comma separated)
-        </label>
-        <Input
-          value={formData.tags}
-          onChange={(e) => updateField("tags", e.target.value)}
-          placeholder="e.g. relaxing, premium, hydrating"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-semibold text-gray-900 mb-2">
-          What&apos;s Included
-        </label>
-        <Textarea
-          value={formData.inclusions}
-          onChange={(e) => updateField("inclusions", e.target.value)}
-          placeholder="List what's included in this service..."
-          rows={3}
-        />
-      </div>
-    </div>
-  );
 
   return (
     <div className="space-y-8 rounded-3xl border border-border/40 bg-card/80 p-6 shadow-sm">
@@ -568,10 +422,48 @@ export default function EnhancedServiceForm({
 
       {/* Form Content */}
       <div className="min-h-96">
-        {currentStep === 0 && renderBasicInformation()}
-        {currentStep === 1 && renderPricingDuration()}
-        {currentStep === 2 && renderServiceMedia()}
-        {currentStep === 3 && renderPromotion()}
+        {steps[currentStep]?.id === "basic" && (
+          <EnhancedBasicInformation
+            formData={formData}
+            updateField={updateField}
+          />
+        )}
+        {steps[currentStep]?.id === "pricing" && (
+          <EnhancedPricingDuration
+            formData={formData}
+            updateField={updateField}
+          />
+        )}
+        {steps[currentStep]?.id === "media" && (
+          <EnhancedServiceMedia
+            formData={formData}
+            updateField={updateField}
+            addImageUrl={addImageUrl}
+            removeImageUrl={removeImageUrl}
+            handleFileUpload={handleFileUpload}
+            isUploading={isUploading}
+            uploadError={uploadError}
+          />
+        )}
+        {steps[currentStep]?.id === "promotion" && (
+          <EnhancedPromotion formData={formData} updateField={updateField} />
+        )}
+        {steps[currentStep]?.id === "schedule" && (
+          <EnhancedSchedule
+            scheduleEnabled={scheduleEnabled}
+            setScheduleEnabled={setScheduleEnabled}
+            scheduleForm={scheduleForm}
+            setScheduleForm={setScheduleForm}
+            scheduleRules={scheduleRules}
+            setScheduleRules={setScheduleRules}
+            scheduleExceptions={scheduleExceptions}
+            setScheduleExceptions={setScheduleExceptions}
+            ruleDraft={ruleDraft}
+            setRuleDraft={setRuleDraft}
+            exceptionDraft={exceptionDraft}
+            setExceptionDraft={setExceptionDraft}
+          />
+        )}
       </div>
 
       {/* Error Message */}
