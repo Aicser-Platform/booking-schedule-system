@@ -372,47 +372,35 @@ export default function EnhancedServiceForm({
       {/* Progress Steps */}
       <div className="border-b border-border/30 pb-6">
         <nav aria-label="Progress">
-          <ol className="flex items-center justify-between">
+          <ol className="flex flex-wrap items-center justify-center gap-6">
             {steps.map((step, index) => {
               const Icon = step.icon;
               const isActive = index === currentStep;
               const isCompleted = index < currentStep;
 
               return (
-                <li key={step.id} className="flex-1">
-                  <div className="flex items-center">
-                    <div
-                      className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
+                <li key={step.id} className="flex items-center">
+                  <div className="group relative">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(index)}
+                      className={`flex h-14 w-14 items-center justify-center rounded-full border-2 transition ${
                         isActive
                           ? "border-primary bg-primary text-primary-foreground"
                           : isCompleted
                             ? "border-primary/40 bg-primary/10 text-primary"
-                            : "border-border/60 bg-background text-muted-foreground"
+                            : "border-border/60 bg-background text-muted-foreground hover:border-primary/40 hover:text-primary"
                       }`}
+                      aria-label={step.title}
+                      title={step.title}
                     >
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <div className="ml-4 flex-1">
-                      <p
-                        className={`text-sm font-medium ${
-                          isActive
-                            ? "text-primary"
-                            : isCompleted
-                              ? "text-foreground"
-                              : "text-muted-foreground"
-                        }`}
-                      >
-                        {step.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {step.description}
-                      </p>
+                      <Icon className="h-6 w-6" />
+                    </button>
+                    <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/2 whitespace-nowrap rounded-full border border-border bg-card px-3 py-1 text-xs font-semibold text-foreground opacity-0 shadow-sm transition group-hover:opacity-100">
+                      {step.title}
                     </div>
                   </div>
 
-                  {index < steps.length - 1 && (
-                    <div className="flex-1 h-px bg-border/40 ml-5" />
-                  )}
                 </li>
               );
             })}
