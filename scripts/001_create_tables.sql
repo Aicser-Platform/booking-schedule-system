@@ -38,6 +38,17 @@ CREATE TABLE IF NOT EXISTS public.users (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- User profiles (one profile per user)
+CREATE TABLE IF NOT EXISTS public.user_profiles (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID UNIQUE REFERENCES public.users(id) ON DELETE CASCADE,
+  full_name VARCHAR(150),
+  phone VARCHAR(50),
+  avatar_url VARCHAR(255),
+  timezone VARCHAR(50) DEFAULT 'UTC',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Locations
 CREATE TABLE IF NOT EXISTS public.locations (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
