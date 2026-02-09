@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Space_Grotesk } from "next/font/google";
@@ -31,6 +31,22 @@ type AuthClientProps = {
   initialMode: Mode;
 };
 
+declare global {
+  interface Window {
+    google?: {
+      accounts?: {
+        id?: {
+          initialize: (options: {
+            client_id: string;
+            callback: (response: { credential?: string }) => void;
+          }) => void;
+          prompt: (notification?: unknown) => void;
+        };
+      };
+    };
+  }
+}
+
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
@@ -46,6 +62,10 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
+  const googleInitialized = useRef(false);
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
   const [fullName, setFullName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
@@ -55,11 +75,26 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
   const [signupError, setSignupError] = useState<string | null>(null);
   const [signupLoading, setSignupLoading] = useState(false);
 
+  const redirectAfterAuth = useCallback(async () => {
+    const meRes = await fetch("/api/auth/me", { cache: "no-store" });
+    const me = await meRes.json();
+
+    const userRole = me?.user?.role;
+    if (userRole === "admin" || userRole === "superadmin") {
+      router.push("/admin/dashboard");
+    } else if (userRole === "staff") {
+      router.push("/staff/dashboard");
+    } else {
+      router.push("/#services");
+    }
+  }, [router]);
+
   useEffect(() => {
     if (modeParam === "login" || modeParam === "signup") {
       setMode(modeParam);
     }
   }, [modeParam]);
+
 
   const handleModeChange = (nextMode: Mode) => {
     if (nextMode === mode) {
@@ -99,23 +134,100 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
         throw new Error(message);
       }
 
-      const meRes = await fetch("/api/auth/me", { cache: "no-store" });
-      const me = await meRes.json();
-
-      const userRole = me?.user?.role;
-      if (userRole === "admin" || userRole === "superadmin") {
-        router.push("/admin/dashboard");
-      } else if (userRole === "staff") {
-        router.push("/staff/dashboard");
-      } else {
-        router.push("/#services");
-      }
+      await redirectAfterAuth();
     } catch (err: unknown) {
       setLoginError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoginLoading(false);
     }
   };
+
+  const handleGoogleCredential = useCallback(async (credential: string) => {
+    setGoogleLoading(true);
+    setLoginError(null);
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const res = await fetch(`${apiUrl}/api/auth/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ credential }),
+      });
+
+      if (!res.ok) {
+        let message = "Google login failed";
+        try {
+          const data = await res.json();
+          message = data?.detail || data?.message || message;
+        } catch {}
+        throw new Error(message);
+      }
+
+      await redirectAfterAuth();
+    } catch (err: unknown) {
+      setLoginError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setGoogleLoading(false);
+    }
+  }, [redirectAfterAuth]);
+
+  const handleGoogleLogin = () => {
+    if (!googleClientId) {
+      setLoginError("Google login is not configured.");
+      return;
+    }
+    if (!window.google?.accounts?.id) {
+      setLoginError("Google login is unavailable.");
+      return;
+    }
+    if (!googleInitialized.current) {
+      setLoginError("Google login is still loading.");
+      return;
+    }
+    window.google.accounts.id.prompt();
+  };
+
+  useEffect(() => {
+    if (!googleClientId) {
+      return;
+    }
+
+    const initializeGoogle = () => {
+      if (!window.google?.accounts?.id || googleInitialized.current) {
+        return;
+      }
+
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: (response) => {
+          if (response?.credential) {
+            void handleGoogleCredential(response.credential);
+          }
+        },
+      });
+      googleInitialized.current = true;
+      setGoogleReady(true);
+    };
+
+    if (window.google?.accounts?.id) {
+      initializeGoogle();
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => initializeGoogle();
+    script.onerror = () => setLoginError("Google login is unavailable.");
+    document.head.appendChild(script);
+
+    return () => {
+      script.onload = null;
+      script.onerror = null;
+    };
+  }, [googleClientId, handleGoogleCredential]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -332,6 +444,28 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
                         {loginLoading ? "Authorizing..." : "Authorize session"}
                         <ArrowRight className="h-4 w-4" />
                       </Button>
+
+                      {googleClientId && (
+                        <>
+                          <div className="flex items-center gap-3 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+                            <span className="h-px flex-1 bg-border/70" />
+                            or
+                            <span className="h-px flex-1 bg-border/70" />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-11 w-full rounded-xl border-border/60 bg-background text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-foreground/80 transition hover:border-border hover:text-foreground"
+                            onClick={handleGoogleLogin}
+                            disabled={!googleReady || googleLoading || loginLoading}
+                          >
+                            <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-border/60 bg-muted text-xs font-semibold text-foreground">
+                              G
+                            </span>
+                            {googleLoading ? "Connecting..." : "Continue with Google"}
+                          </Button>
+                        </>
+                      )}
                     </div>
 
                     {DEMO_ENABLED && (
@@ -500,6 +634,28 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
                           : "Authorize account"}
                         <ArrowRight className="h-4 w-4" />
                       </Button>
+
+                      {googleClientId && (
+                        <>
+                          <div className="flex items-center gap-3 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+                            <span className="h-px flex-1 bg-border/70" />
+                            or
+                            <span className="h-px flex-1 bg-border/70" />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-11 w-full rounded-xl border-border/60 bg-background text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-foreground/80 transition hover:border-border hover:text-foreground"
+                            onClick={handleGoogleLogin}
+                            disabled={!googleReady || googleLoading || signupLoading}
+                          >
+                            <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-border/60 bg-muted text-xs font-semibold text-foreground">
+                              G
+                            </span>
+                            {googleLoading ? "Connecting..." : "Continue with Google"}
+                          </Button>
+                        </>
+                      )}
                     </div>
 
                     {DEMO_ENABLED && (

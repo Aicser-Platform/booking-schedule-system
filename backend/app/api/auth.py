@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 import secrets
 import uuid
 import hashlib
+import httpx
 
 from app.core.database import get_db
 from app.core.auth import get_current_user, resolve_token
@@ -66,6 +67,11 @@ class ChangePasswordBody(BaseModel):
     new_password: str
 
 
+class GoogleLoginBody(BaseModel):
+    credential: Optional[str] = None
+    id_token: Optional[str] = None
+
+
 # =========================
 # Helpers
 # =========================
@@ -76,6 +82,37 @@ def create_session_token() -> str:
 
 def hash_reset_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def verify_google_token(id_token: str) -> dict:
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="Google login is not configured")
+
+    try:
+        res = httpx.get(
+            "https://oauth2.googleapis.com/tokeninfo",
+            params={"id_token": id_token},
+            timeout=10.0,
+        )
+    except httpx.RequestError:
+        raise HTTPException(status_code=502, detail="Unable to verify Google token")
+
+    if res.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+
+    payload = res.json()
+    if payload.get("aud") != settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+
+    email = payload.get("email")
+    if not email:
+        raise HTTPException(status_code=401, detail="Google token missing email")
+
+    email_verified = payload.get("email_verified")
+    if email_verified not in (True, "true", "True", "1", 1):
+        raise HTTPException(status_code=401, detail="Google email not verified")
+
+    return payload
 
 
 # =========================
@@ -191,6 +228,104 @@ def login(
             INSERT INTO sessions (id, user_id, token, expires_at)
             VALUES (:id, :user_id, :token, :expires_at)
         """),
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": user.id,
+            "token": token,
+            "expires_at": expires_at,
+        },
+    )
+    db.commit()
+
+    response.set_cookie(
+        key="auth_token",
+        value=token,
+        httponly=True,
+        samesite="lax",
+        secure=False,
+        path="/",
+        max_age=SESSION_DAYS * 24 * 60 * 60,
+    )
+
+    return {"user": dict(user._mapping)}
+
+
+# =========================
+# Google login
+# =========================
+
+@router.post("/google")
+def google_login(
+    response: Response,
+    payload: GoogleLoginBody = Body(...),
+    db: Session = Depends(get_db),
+):
+    token = payload.credential or payload.id_token
+    if not token:
+        raise HTTPException(status_code=400, detail="Missing Google credential")
+
+    data = verify_google_token(token)
+
+    email = data.get("email")
+    full_name = data.get("name")
+    avatar_url = data.get("picture")
+
+    user = db.execute(
+        text(
+            """
+            SELECT id, email, full_name, role, phone, avatar_url, timezone, password_hash, is_active
+            FROM users
+            WHERE email = :email
+            """
+        ),
+        {"email": email},
+    ).fetchone()
+
+    if not user:
+        role = "customer"
+        role_exists = db.execute(
+            text("SELECT 1 FROM roles WHERE name = :role"),
+            {"role": role},
+        ).fetchone()
+        if not role_exists:
+            raise HTTPException(status_code=500, detail="Default role is not configured")
+
+        user_id = str(uuid.uuid4())
+        user = db.execute(
+            text(
+                """
+                INSERT INTO users (id, email, full_name, role, avatar_url)
+                VALUES (:id, :email, :full_name, :role, :avatar_url)
+                RETURNING id, email, full_name, role, phone, avatar_url, timezone
+                """
+            ),
+            {
+                "id": user_id,
+                "email": email,
+                "full_name": full_name,
+                "role": role,
+                "avatar_url": avatar_url,
+            },
+        ).fetchone()
+    else:
+        if not user.is_active:
+            raise HTTPException(status_code=403, detail="Account is disabled")
+        if avatar_url and not user.avatar_url:
+            db.execute(
+                text("UPDATE users SET avatar_url = :avatar_url WHERE id = :id"),
+                {"avatar_url": avatar_url, "id": user.id},
+            )
+
+    token = create_session_token()
+    expires_at = datetime.utcnow() + timedelta(days=SESSION_DAYS)
+
+    db.execute(
+        text(
+            """
+            INSERT INTO sessions (id, user_id, token, expires_at)
+            VALUES (:id, :user_id, :token, :expires_at)
+            """
+        ),
         {
             "id": str(uuid.uuid4()),
             "user_id": user.id,

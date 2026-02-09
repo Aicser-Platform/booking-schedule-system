@@ -7,12 +7,32 @@ from zoneinfo import ZoneInfo
 from app.core.database import get_db
 from app.core.auth import get_current_user, is_admin
 from app.core.config import settings
+from app.core.notify import send_email_notification, get_booking_email_context, build_booking_email
 from app.models.schemas import (
     BookingCreate, BookingUpdate, BookingResponse, BookingWithDetails
 )
 import uuid
 
 router = APIRouter()
+
+def _send_booking_emails(db: Session, booking_id: str, notification_type: str) -> None:
+    context = get_booking_email_context(db, booking_id)
+    if not context:
+        return
+
+    for role, key in (("customer", "customer_email"), ("staff", "staff_email")):
+        recipient = context.get(key)
+        if not recipient:
+            continue
+        email_payload = build_booking_email(context, notification_type, role)
+        send_email_notification(
+            db=db,
+            booking_id=booking_id,
+            notification_type=notification_type,
+            recipient=recipient,
+            subject=email_payload["subject"],
+            body=email_payload["body"],
+        )
 
 def _is_nth_weekday_in_month(target_date: date, weekday: int, nth: int) -> bool:
     if target_date.weekday() != weekday:
@@ -412,6 +432,8 @@ async def create_booking(
         }
     )
     db.commit()
+
+    _send_booking_emails(db, booking_id, "confirmation")
     
     result = db.execute(
         "SELECT * FROM bookings WHERE id = :id",
@@ -651,6 +673,11 @@ async def update_booking(
             }
         )
         db.commit()
+
+    if change_type == "reschedule":
+        _send_booking_emails(db, booking_id, "confirmation")
+    if booking.status is not None and booking.status == "cancelled":
+        _send_booking_emails(db, booking_id, "cancellation")
     
     result = db.execute(
         "SELECT * FROM bookings WHERE id = :id",
@@ -687,5 +714,7 @@ async def cancel_booking(
         }
     )
     db.commit()
+
+    _send_booking_emails(db, booking_id, "cancellation")
     
     return {"message": "Booking cancelled"}

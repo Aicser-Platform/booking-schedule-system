@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None
 
     # =========================
+    # Google OAuth
+    # =========================
+    GOOGLE_CLIENT_ID: Optional[str] = None
+
+    # =========================
     # ABA Payway (Mock)
     # =========================
     ABA_PAYWAY_MERCHANT_ID: str = "mock_merchant_id"
@@ -49,6 +54,25 @@ class Settings(BaseSettings):
     SLOT_GRANULARITY_MINUTES: int = 15
     MIN_NOTICE_MINUTES: int = 120
     MAX_BOOKING_DAYS: int = 90
+
+    # =========================
+    # Email (SMTP)
+    # =========================
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_USE_TLS: bool = True
+    SMTP_USE_SSL: bool = False
+    SMTP_FROM_EMAIL: Optional[str] = None
+    SMTP_FROM_NAME: Optional[str] = None
+
+    # =========================
+    # Reminder Jobs
+    # =========================
+    REMINDER_LEAD_MINUTES: int = 60
+    REMINDER_WINDOW_MINUTES: int = 5
+    REMINDER_CRON_TOKEN: Optional[str] = None
 
     @property
     def cors_origins_list(self) -> List[str]:
