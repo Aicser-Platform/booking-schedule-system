@@ -7,9 +7,14 @@ type RouteContext = {
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   const cookieStore = await cookies();
-  const token = cookieStore.get("auth_token")?.value;
   const authHeader = _request.headers.get("authorization");
-  const cookieHeader = _request.headers.get("cookie");
+  const cookieHeader = _request.headers.get("cookie") ?? "";
+  const headerToken = cookieHeader
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith("auth_token="))
+    ?.split("=")[1];
+  const token = cookieStore.get("auth_token")?.value ?? headerToken;
 
   if (!token && !authHeader) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -41,9 +46,14 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   const cookieStore = await cookies();
-  const token = cookieStore.get("auth_token")?.value;
   const authHeader = _request.headers.get("authorization");
-  const cookieHeader = _request.headers.get("cookie");
+  const cookieHeader = _request.headers.get("cookie") ?? "";
+  const headerToken = cookieHeader
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith("auth_token="))
+    ?.split("=")[1];
+  const token = cookieStore.get("auth_token")?.value ?? headerToken;
 
   if (!token && !authHeader) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

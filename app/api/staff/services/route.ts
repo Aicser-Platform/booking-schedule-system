@@ -3,9 +3,14 @@ import { cookies } from "next/headers";
 
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies();
-  const token = cookieStore.get("auth_token")?.value;
   const authHeader = request.headers.get("authorization");
-  const cookieHeader = request.headers.get("cookie");
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const headerToken = cookieHeader
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith("auth_token="))
+    ?.split("=")[1];
+  const token = cookieStore.get("auth_token")?.value ?? headerToken;
 
   if (!token && !authHeader) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

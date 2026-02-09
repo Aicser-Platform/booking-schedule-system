@@ -108,7 +108,7 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
       } else if (userRole === "staff") {
         router.push("/staff/dashboard");
       } else {
-        router.push("/dashboard");
+        router.push("/#services");
       }
     } catch (err: unknown) {
       setLoginError(err instanceof Error ? err.message : "An error occurred");

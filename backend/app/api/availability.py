@@ -1472,6 +1472,7 @@ async def get_next_available_day(
     staff_id: str = None,
     location_id: str = None,
     granularity_minutes: Optional[int] = None,
+    from_date: Optional[date] = None,
     db: Session = Depends(get_db)
 ):
     """Return the next available date with at least one slot."""
@@ -1481,8 +1482,11 @@ async def get_next_available_day(
 
     tz = ZoneInfo(timezone)
     today = datetime.now(tz).date()
+    start_date = from_date or today
+    if start_date < today:
+        start_date = today
     for day_offset in range(0, settings.MAX_BOOKING_DAYS + 1):
-        target_date = today + timedelta(days=day_offset)
+        target_date = start_date + timedelta(days=day_offset)
         cache_key = (
             f"slots-v2:{service_id}:{target_date}:{timezone}:{staff_id or 'any'}:"
             f"{location_id or 'any'}:{granularity}:None:None"
@@ -1509,6 +1513,72 @@ async def get_next_available_day(
             return {"date": target_date}
 
     return {"date": None}
+
+@router.get("/slots-v2/month")
+async def get_month_availability(
+    service_id: str,
+    year: int,
+    month: int,
+    timezone: str,
+    staff_id: str = None,
+    location_id: str = None,
+    granularity_minutes: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    """Return availability per day for a given month (customer booking calendar)."""
+    if month < 1 or month > 12:
+        raise HTTPException(status_code=400, detail="Invalid month")
+
+    granularity = granularity_minutes or settings.SLOT_GRANULARITY_MINUTES
+    if granularity not in (5, 10, 15, 30):
+        raise HTTPException(status_code=400, detail="Invalid granularity")
+
+    try:
+        tz = ZoneInfo(timezone)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid timezone")
+
+    today = datetime.now(tz).date()
+    last_day = calendar.monthrange(year, month)[1]
+    start_date = date(year, month, 1)
+    end_date = date(year, month, last_day)
+    max_date = today + timedelta(days=settings.MAX_BOOKING_DAYS)
+
+    results = []
+    current = start_date
+    while current <= end_date:
+        if current < today or current > max_date:
+            results.append({"date": current, "has_slots": False})
+            current += timedelta(days=1)
+            continue
+
+        cache_key = (
+            f"slots-v2:{service_id}:{current}:{timezone}:{staff_id or 'any'}:"
+            f"{location_id or 'any'}:{granularity}:None:None"
+        )
+        cached = _get_cached_slots(cache_key)
+        if cached is None:
+            slots = _compute_slots_for_date(
+                db=db,
+                service_id=service_id,
+                target_date=current,
+                timezone=timezone,
+                staff_id=staff_id,
+                location_id=location_id,
+                granularity_minutes=granularity,
+                window_start=None,
+                window_end=None,
+                min_notice_minutes=settings.MIN_NOTICE_MINUTES,
+                max_booking_days=settings.MAX_BOOKING_DAYS,
+            )
+            _set_cached_slots(cache_key, slots)
+        else:
+            slots = cached
+
+        results.append({"date": current, "has_slots": bool(slots)})
+        current += timedelta(days=1)
+
+    return results
 
 @router.get("/calendar")
 async def get_availability_calendar(

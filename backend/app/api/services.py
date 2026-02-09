@@ -583,10 +583,13 @@ async def get_service_staff(service_id: str, db: Session = Depends(get_db)):
     result = db.execute(
         text(
             """
-            SELECT u.id, u.full_name
+            SELECT u.id, u.full_name, u.avatar_url,
+                   ss.price_override, ss.deposit_override, ss.duration_override,
+                   ss.buffer_override, ss.capacity_override
             FROM staff_services ss
             JOIN users u ON u.id = ss.staff_id
             WHERE ss.service_id = :service_id AND u.is_active = TRUE
+              AND u.role = 'staff'
               AND ss.is_bookable = TRUE
               AND ss.is_temporarily_unavailable = FALSE
               AND ss.admin_only = FALSE
@@ -597,6 +600,15 @@ async def get_service_staff(service_id: str, db: Session = Depends(get_db)):
     )
 
     return [
-        {"id": row[0], "name": row[1] or "Staff Member"}
+        {
+            "id": row[0],
+            "name": row[1] or "Staff Member",
+            "avatar_url": row[2],
+            "price_override": row[3],
+            "deposit_override": row[4],
+            "duration_override": row[5],
+            "buffer_override": row[6],
+            "capacity_override": row[7],
+        }
         for row in result.fetchall()
     ]

@@ -28,12 +28,28 @@ type ServiceCreationLayoutProps = {
     image_urls: string[] | null;
     is_active: boolean | null;
   }>;
+  staffOptions?: Array<{
+    id: string;
+    full_name: string | null;
+    role: "staff" | "admin" | "superadmin" | "customer";
+    is_active: boolean;
+  }>;
+  assignedStaff?: Array<{
+    id: string;
+    full_name?: string | null;
+    phone?: string | null;
+    avatar_url?: string | null;
+    role: string;
+    assignment_id: string;
+  }>;
 };
 
 export function ServiceCreationLayout({
   mode,
   serviceId,
   initialValues,
+  staffOptions,
+  assignedStaff,
 }: ServiceCreationLayoutProps) {
   const initialPreview = useMemo<ServicePreviewData>(
     () => ({
@@ -78,6 +94,8 @@ export function ServiceCreationLayout({
           serviceId={serviceId}
           initialValues={initialValues}
           onPreviewUpdate={setPreviewData}
+          staffOptions={staffOptions}
+          assignedStaff={assignedStaff}
         />
         <div className="lg:sticky lg:top-6 self-start">
           <ServicePreviewCard service={previewData} />

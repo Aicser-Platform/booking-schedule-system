@@ -111,9 +111,23 @@ async def assign_staff_to_service(
 ):
     """Assign a staff member to a service (Admin only)"""
     assignment_id = str(uuid.uuid4())
-    
+
+    staff_exists = db.execute(
+        text("SELECT 1 FROM users WHERE id = :id"),
+        {"id": assignment.staff_id},
+    ).fetchone()
+    if not staff_exists:
+        raise HTTPException(status_code=400, detail="Invalid staff_id")
+
+    service_exists = db.execute(
+        text("SELECT 1 FROM services WHERE id = :id"),
+        {"id": assignment.service_id},
+    ).fetchone()
+    if not service_exists:
+        raise HTTPException(status_code=400, detail="Invalid service_id")
+
     try:
-        db.execute(
+        result = db.execute(
             text(
                 """
                 INSERT INTO staff_services (
@@ -126,6 +140,16 @@ async def assign_staff_to_service(
                     :price_override, :deposit_override, :duration_override, :buffer_override, :capacity_override,
                     :is_bookable, :is_temporarily_unavailable, :admin_only
                 )
+                ON CONFLICT (staff_id, service_id) DO UPDATE
+                SET price_override = EXCLUDED.price_override,
+                    deposit_override = EXCLUDED.deposit_override,
+                    duration_override = EXCLUDED.duration_override,
+                    buffer_override = EXCLUDED.buffer_override,
+                    capacity_override = EXCLUDED.capacity_override,
+                    is_bookable = EXCLUDED.is_bookable,
+                    is_temporarily_unavailable = EXCLUDED.is_temporarily_unavailable,
+                    admin_only = EXCLUDED.admin_only
+                RETURNING *
                 """
             ),
             {
@@ -141,7 +165,7 @@ async def assign_staff_to_service(
                 "is_temporarily_unavailable": assignment.is_temporarily_unavailable,
                 "admin_only": assignment.admin_only,
             }
-        )
+        ).fetchone()
         log_audit(
             db,
             current_user.get("id"),
@@ -151,15 +175,11 @@ async def assign_staff_to_service(
             assignment.model_dump(),
         )
         db.commit()
-    except Exception as e:
+    except Exception:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Assignment already exists or invalid IDs")
-    
-    result = db.execute(
-        text("SELECT * FROM staff_services WHERE id = :id"),
-        {"id": assignment_id}
-    )
-    return dict(result.fetchone()._mapping)
+        raise HTTPException(status_code=400, detail="Unable to assign staff to service")
+
+    return dict(result._mapping)
 
 @router.put("/services/{assignment_id}", response_model=StaffServiceResponse)
 async def update_staff_service_assignment(

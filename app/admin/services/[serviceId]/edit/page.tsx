@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { ServiceCreationLayout } from "../../ServiceCreationLayout";
-import ServiceStaffAssignments from "../../ServiceStaffAssignments";
 import ServiceOperatingSchedule from "../../ServiceOperatingSchedule";
 
 type MeUser = {
@@ -86,16 +85,21 @@ async function getService(serviceId: string): Promise<ServiceRow | null> {
 async function getStaff(): Promise<StaffRow[]> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   const cookie = (await headers()).get("cookie") ?? "";
+  const token = (await cookies()).get("auth_token")?.value;
 
   try {
     const res = await fetch(`${apiUrl}/api/admin/staff`, {
       method: "GET",
-      headers: { Cookie: cookie },
+      headers: {
+        Cookie: cookie,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       cache: "no-store",
     });
 
     if (!res.ok) return [];
-    return (await res.json()) as StaffRow[];
+    const data = (await res.json()) as StaffRow[];
+    return data.filter((user) => user.role === "staff");
   } catch {
     return [];
   }
@@ -113,7 +117,8 @@ async function getAssignedStaff(serviceId: string): Promise<AssignedStaff[]> {
     });
 
     if (!res.ok) return [];
-    return (await res.json()) as AssignedStaff[];
+    const data = (await res.json()) as AssignedStaff[];
+    return data.filter((user) => user.role === "staff");
   } catch {
     return [];
   }
@@ -145,9 +150,6 @@ export default async function AdminServiceEditPage({
           mode="edit"
           serviceId={serviceId}
           initialValues={service}
-        />
-        <ServiceStaffAssignments
-          serviceId={serviceId}
           staffOptions={staff}
           assignedStaff={assignedStaff}
         />

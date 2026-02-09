@@ -96,6 +96,9 @@ def require_permissions(*permissions: Iterable[str]):
         if not role:
             raise HTTPException(status_code=403, detail="Forbidden")
 
+        if role in ADMIN_ROLES:
+            return current_user
+
         user_permissions = get_permissions_for_role(db, role)
         if not required.issubset(user_permissions):
             raise HTTPException(status_code=403, detail="Forbidden")

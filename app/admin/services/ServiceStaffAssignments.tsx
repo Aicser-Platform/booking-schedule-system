@@ -68,6 +68,9 @@ export default function ServiceStaffAssignments({
         body: JSON.stringify({
           staff_id: selectedStaffId,
           service_id: serviceId,
+          is_bookable: true,
+          is_temporarily_unavailable: false,
+          admin_only: false,
         }),
       });
 

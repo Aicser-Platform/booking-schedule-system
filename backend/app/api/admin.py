@@ -33,12 +33,14 @@ def list_staff(
     db: Session = Depends(get_db),
 ):
     result = db.execute(
-        """
-        SELECT id, full_name, avatar_url, phone, role, is_active
-        FROM users
-        WHERE role IN ('staff', 'admin', 'superadmin')
-        ORDER BY full_name
-        """
+        text(
+            """
+            SELECT id, full_name, avatar_url, phone, role, is_active
+            FROM users
+            WHERE role IN ('staff', 'admin', 'superadmin')
+            ORDER BY full_name
+            """
+        )
     )
     staff_rows = result.fetchall()
 

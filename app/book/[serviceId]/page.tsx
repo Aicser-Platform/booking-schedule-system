@@ -1,11 +1,22 @@
 import { redirect, notFound } from "next/navigation";
 import { headers } from "next/headers";
+import type { CSSProperties } from "react";
+import { Playfair_Display } from "next/font/google";
 import { BookingForm } from "@/components/booking/booking-form";
 import { ImageCarousel } from "@/components/ui/image-carousel";
+import { cn } from "@/lib/utils";
+
+const displayFont = Playfair_Display({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+});
 
 type MeUser = {
   id: string;
   email: string;
+  full_name?: string | null;
+  phone?: string | null;
+  timezone?: string | null;
   role: "customer" | "staff" | "admin" | "superadmin";
 };
 
@@ -31,6 +42,12 @@ type ServiceRow = {
 type StaffOption = {
   id: string;
   name: string;
+  avatar_url?: string | null;
+  price_override?: number | string | null;
+  deposit_override?: number | string | null;
+  duration_override?: number | string | null;
+  buffer_override?: number | string | null;
+  capacity_override?: number | string | null;
 };
 
 async function getMe(): Promise<MeUser | null> {
@@ -51,8 +68,6 @@ async function getService(serviceId: string): Promise<ServiceRow | null> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   const cookie = (await headers()).get("cookie") ?? "";
 
-  // Backend endpoint you should create:
-  // GET /api/services/:serviceId
   try {
     const res = await fetch(`${apiUrl}/api/services/${serviceId}`, {
       method: "GET",
@@ -71,8 +86,6 @@ async function getServiceStaff(serviceId: string): Promise<StaffOption[]> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   const cookie = (await headers()).get("cookie") ?? "";
 
-  // Backend endpoint you should create:
-  // GET /api/services/:serviceId/staff
   try {
     const res = await fetch(`${apiUrl}/api/services/${serviceId}/staff`, {
       method: "GET",
@@ -87,6 +100,11 @@ async function getServiceStaff(serviceId: string): Promise<StaffOption[]> {
   }
 }
 
+const themeStyle: CSSProperties = {
+  "--booking-bg": "oklch(0.08 0.02 240)",
+  "--booking-accent": "oklch(0.5 0.22 200)",
+};
+
 export default async function BookServicePage({
   params,
 }: {
@@ -94,118 +112,129 @@ export default async function BookServicePage({
 }) {
   const { serviceId } = await params;
 
-  // Check if user is logged in
   const me = await getMe();
   if (!me) redirect(`/auth/login?redirect=/book/${serviceId}`);
 
-  // Get service details
   const service = await getService(serviceId);
   if (!service) notFound();
 
-  // Get staff assigned to this service
   const staff = await getServiceStaff(serviceId);
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="container motion-page py-10 sm:py-16">
-        <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[1.6fr_1fr]">
-          <div>
-            <div className="mb-8 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
-              {(() => {
-                const images = service.image_urls?.length
-                  ? service.image_urls
-                  : service.image_url
-                    ? [service.image_url]
-                    : [];
+  const images = service.image_urls?.length
+    ? service.image_urls
+    : service.image_url
+      ? [service.image_url]
+      : [];
 
-                return images.length > 0 ? (
-                  <ImageCarousel
-                    images={images}
-                    alt={service.name}
-                    className="h-80 w-full"
-                    imageClassName="h-80 w-full object-cover"
-                  />
-                ) : (
-                  <div className="h-80 w-full bg-muted" />
-                );
-              })()}
-              <div className="p-6 sm:p-8">
-                <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-                  Service Details
-                </p>
-                <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                  {service.public_name || service.name}
-                </h1>
-                <p className="mt-3 text-base leading-relaxed text-muted-foreground">
+  const inclusionItems = service.inclusions
+    ? service.inclusions
+        .split(/\r?\n/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
+
+  return (
+    <div
+      className="min-h-screen bg-[var(--booking-bg)] text-slate-100"
+      style={themeStyle}
+    >
+      <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:py-14">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,0.9fr)]">
+          <div className="space-y-8 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pr-6 scrollbar-thin">
+            <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-2xl">
+              {images.length > 0 ? (
+                <ImageCarousel
+                  images={images}
+                  alt={service.name}
+                  className="h-80 w-full"
+                  imageClassName="h-80 w-full object-cover"
+                />
+              ) : (
+                <div className="h-80 w-full bg-white/5" />
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                Service Details
+              </p>
+              <h1
+                className={cn(
+                  "text-3xl font-semibold tracking-tight text-white sm:text-4xl",
+                  displayFont.className,
+                )}
+              >
+                {service.public_name || service.name}
+              </h1>
+              {service.description ? (
+                <p className="text-base leading-relaxed text-slate-300">
                   {service.description}
                 </p>
-                <div className="mt-5 flex flex-wrap gap-2.5 text-sm">
-                  {service.category && (
-                    <span className="rounded-full border border-border bg-background px-4 py-1.5 font-medium text-foreground shadow-sm">
-                      {service.category}
-                    </span>
-                  )}
-                  <span className="rounded-full border border-border bg-background px-4 py-1.5 font-medium text-foreground shadow-sm">
-                    {service.duration_minutes} mins
-                  </span>
-                  <span className="rounded-full border border-border bg-background px-4 py-1.5 font-medium text-foreground shadow-sm">
-                    ${service.price}
-                  </span>
-                  {service.deposit_amount > 0 && (
-                    <span className="rounded-full border border-border bg-background px-4 py-1.5 font-medium text-foreground shadow-sm">
-                      ${service.deposit_amount} deposit
-                    </span>
-                  )}
-                </div>
-                {service.tags && service.tags.length > 0 && (
-                  <div className="mt-4 flex flex-wrap gap-1.5">
-                    {service.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-md border border-border bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
+              ) : null}
+            </div>
+
+            <div className="flex flex-wrap gap-3 text-xs">
+              {service.category ? (
+                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-slate-200">
+                  {service.category}
+                </span>
+              ) : null}
+              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-slate-200">
+                {service.duration_minutes} mins
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-slate-200">
+                ${service.price}
+              </span>
+              {service.deposit_amount > 0 ? (
+                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-slate-200">
+                  ${service.deposit_amount} deposit
+                </span>
+              ) : null}
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              {service.inclusions && (
-                <div className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-                  <h2 className="text-sm font-semibold text-foreground">
-                    Inclusions
+              {inclusionItems.length > 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                  <h2 className="text-sm font-semibold text-white">
+                    What&apos;s Included
                   </h2>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                    {service.inclusions}
-                  </p>
+                  <ul className="mt-3 space-y-2 text-sm text-slate-300">
+                    {inclusionItems.map((item) => (
+                      <li key={item} className="flex items-start gap-2">
+                        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[var(--booking-accent)]" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              )}
-              {service.prep_notes && (
-                <div className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-                  <h2 className="text-sm font-semibold text-foreground">
-                    Prep Notes
-                  </h2>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              ) : null}
+              {service.prep_notes ? (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                  <h2 className="text-sm font-semibold text-white">Prep Notes</h2>
+                  <p className="mt-3 text-sm leading-relaxed text-slate-300">
                     {service.prep_notes}
                   </p>
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
 
           <div className="lg:sticky lg:top-8">
-            <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
-              <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-                Book now
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Select staff and your preferred time slot.
-              </p>
+            <div className="rounded-3xl border border-white/10 bg-black/40 p-6 shadow-[0_30px_120px_rgba(0,0,0,0.35)] backdrop-blur">
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                  Book your day
+                </p>
+                <h2 className="text-lg font-semibold text-white">
+                  Secure your preferred time
+                </h2>
+                <p className="text-sm text-slate-400">
+                  Select staff, date, and time. You&apos;ll confirm details before
+                  payment.
+                </p>
+              </div>
               <div className="mt-6">
-                <BookingForm service={service} staff={staff} userId={me.id} />
+                <BookingForm service={service} staff={staff} customer={me} />
               </div>
             </div>
           </div>

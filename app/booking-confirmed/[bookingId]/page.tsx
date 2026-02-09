@@ -152,7 +152,7 @@ export default async function BookingConfirmedPage({
                   <li className="flex items-start gap-2">
                     <span className="text-primary mt-0.5">•</span>
                     <span>
-                      You can reschedule or cancel from your dashboard
+                      Return to services if you want to book another appointment
                     </span>
                   </li>
                 </ul>
@@ -160,10 +160,10 @@ export default async function BookingConfirmedPage({
 
               <div className="flex flex-col gap-3 sm:flex-row pt-2">
                 <Button asChild size="lg" className="flex-1">
-                  <Link href="/dashboard">View My Bookings</Link>
+                  <Link href="/#services">View Services</Link>
                 </Button>
                 <Button asChild size="lg" variant="outline" className="flex-1">
-                  <Link href="/services">Book Another</Link>
+                  <Link href="/#services">Book Another</Link>
                 </Button>
               </div>
             </CardContent>
@@ -173,3 +173,5 @@ export default async function BookingConfirmedPage({
     </div>
   );
 }
+
+

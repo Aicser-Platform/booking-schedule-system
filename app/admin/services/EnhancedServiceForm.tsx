@@ -3,7 +3,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Camera, DollarSign, FileText, Settings, Calendar } from "lucide-react";
+import {
+  Camera,
+  DollarSign,
+  FileText,
+  Settings,
+  Calendar,
+  Users,
+} from "lucide-react";
 import type {
   OperatingExceptionDraft,
   OperatingRuleDraft,
@@ -18,12 +25,27 @@ import EnhancedPricingDuration from "./service-form/enhanced/EnhancedPricingDura
 import EnhancedServiceMedia from "./service-form/enhanced/EnhancedServiceMedia";
 import EnhancedPromotion from "./service-form/enhanced/EnhancedPromotion";
 import EnhancedSchedule from "./service-form/enhanced/EnhancedSchedule";
+import EnhancedStaffAssignments from "./service-form/enhanced/EnhancedStaffAssignments";
 
 type EnhancedServiceFormProps = {
   mode: "create" | "edit";
   serviceId?: string;
   initialValues?: any;
   onPreviewUpdate?: (data: any) => void;
+  staffOptions?: Array<{
+    id: string;
+    full_name: string | null;
+    role: "staff" | "admin" | "superadmin" | "customer";
+    is_active: boolean;
+  }>;
+  assignedStaff?: Array<{
+    id: string;
+    full_name?: string | null;
+    phone?: string | null;
+    avatar_url?: string | null;
+    role: string;
+    assignment_id: string;
+  }>;
 };
 
 export default function EnhancedServiceForm({
@@ -31,6 +53,8 @@ export default function EnhancedServiceForm({
   serviceId,
   initialValues,
   onPreviewUpdate,
+  staffOptions = [],
+  assignedStaff = [],
 }: EnhancedServiceFormProps) {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
@@ -94,6 +118,9 @@ export default function EnhancedServiceForm({
       end_time: "",
       reason: "",
     },
+  );
+  const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>(
+    () => assignedStaff.map((staff) => staff.id).filter(Boolean),
   );
 
   // Update preview whenever form data changes
@@ -206,6 +233,12 @@ export default function EnhancedServiceForm({
       title: "Promotion",
       icon: Settings,
       description: "Visibility and promotional settings",
+    },
+    {
+      id: "staff",
+      title: "Assign Staff",
+      icon: Users,
+      description: "Staff availability",
     },
     ...(mode === "create"
       ? [
@@ -358,6 +391,95 @@ export default function EnhancedServiceForm({
         }
       }
 
+      const uniqueStaffIds = Array.from(new Set(selectedStaffIds)).filter(
+        Boolean,
+      );
+      if (createdServiceId) {
+        if (mode === "create" && uniqueStaffIds.length > 0) {
+          const assignments = uniqueStaffIds.map(async (staffId) => {
+            const res = await fetch("/api/staff/services", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({
+                staff_id: staffId,
+                service_id: createdServiceId,
+                is_bookable: true,
+                is_temporarily_unavailable: false,
+                admin_only: false,
+              }),
+            });
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}));
+              const message =
+                data?.detail || data?.message || "Failed to assign staff";
+              if (
+                res.status === 400 &&
+                typeof message === "string" &&
+                message.toLowerCase().includes("already exists")
+              ) {
+                return;
+              }
+              throw new Error(message);
+            }
+          });
+          await Promise.all(assignments);
+        }
+
+        if (mode === "edit") {
+          const assignedMap = new Map(
+            assignedStaff.map((staff) => [staff.id, staff.assignment_id]),
+          );
+          const toAdd = uniqueStaffIds.filter((id) => !assignedMap.has(id));
+          const toRemove = assignedStaff
+            .filter((staff) => !uniqueStaffIds.includes(staff.id))
+            .map((staff) => staff.assignment_id);
+
+          const addRequests = toAdd.map(async (staffId) => {
+            const res = await fetch("/api/staff/services", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({
+                staff_id: staffId,
+                service_id: createdServiceId,
+                is_bookable: true,
+                is_temporarily_unavailable: false,
+                admin_only: false,
+              }),
+            });
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}));
+              const message =
+                data?.detail || data?.message || "Failed to assign staff";
+              if (
+                res.status === 400 &&
+                typeof message === "string" &&
+                message.toLowerCase().includes("already exists")
+              ) {
+                return;
+              }
+              throw new Error(message);
+            }
+          });
+
+          const removeRequests = toRemove.map(async (assignmentId) => {
+            const res = await fetch(`/api/staff/services/${assignmentId}`, {
+              method: "DELETE",
+              credentials: "include",
+            });
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}));
+              throw new Error(
+                data?.detail || data?.message || "Failed to remove staff",
+              );
+            }
+          });
+
+          await Promise.all([...addRequests, ...removeRequests]);
+        }
+      }
+
       router.push("/admin/services");
       router.refresh();
     } catch (err) {
@@ -435,6 +557,13 @@ export default function EnhancedServiceForm({
         )}
         {steps[currentStep]?.id === "promotion" && (
           <EnhancedPromotion formData={formData} updateField={updateField} />
+        )}
+        {steps[currentStep]?.id === "staff" && (
+          <EnhancedStaffAssignments
+            staffOptions={staffOptions}
+            selectedStaffIds={selectedStaffIds}
+            setSelectedStaffIds={setSelectedStaffIds}
+          />
         )}
         {steps[currentStep]?.id === "schedule" && (
           <EnhancedSchedule

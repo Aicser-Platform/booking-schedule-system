@@ -33,6 +33,7 @@ async function getMe(): Promise<MeUser | null> {
 export default async function SupportPage() {
   const me = await getMe();
   if (!me) redirect("/auth/login");
+  if (me.role === "customer") redirect("/#services");
   if (me.role === "admin" || me.role === "superadmin")
     redirect("/admin/dashboard");
 
