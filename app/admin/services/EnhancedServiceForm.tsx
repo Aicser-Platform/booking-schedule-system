@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -122,6 +122,10 @@ export default function EnhancedServiceForm({
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>(
     () => assignedStaff.map((staff) => staff.id).filter(Boolean),
   );
+  const uniqueStaffIds = useMemo(
+    () => Array.from(new Set(selectedStaffIds)).filter(Boolean),
+    [selectedStaffIds],
+  );
 
   // Update preview whenever form data changes
   useEffect(() => {
@@ -211,6 +215,12 @@ export default function EnhancedServiceForm({
 
   const steps = [
     {
+      id: "staff",
+      title: "Assign Staff",
+      icon: Users,
+      description: "Staff availability",
+    },
+    {
       id: "basic",
       title: "Basic Information",
       icon: FileText,
@@ -234,12 +244,6 @@ export default function EnhancedServiceForm({
       icon: Settings,
       description: "Visibility and promotional settings",
     },
-    {
-      id: "staff",
-      title: "Assign Staff",
-      icon: Users,
-      description: "Staff availability",
-    },
     ...(mode === "create"
       ? [
           {
@@ -257,6 +261,14 @@ export default function EnhancedServiceForm({
     setError(null);
 
     try {
+      if (uniqueStaffIds.length === 0) {
+        const staffIndex = steps.findIndex((step) => step.id === "staff");
+        if (staffIndex >= 0) {
+          setCurrentStep(staffIndex);
+        }
+        throw new Error("Select at least 1 staff member before saving.");
+      }
+
       const endpoint =
         mode === "create" ? "/api/services" : `/api/services/${serviceId}`;
 
@@ -391,9 +403,6 @@ export default function EnhancedServiceForm({
         }
       }
 
-      const uniqueStaffIds = Array.from(new Set(selectedStaffIds)).filter(
-        Boolean,
-      );
       if (createdServiceId) {
         if (mode === "create" && uniqueStaffIds.length > 0) {
           const assignments = uniqueStaffIds.map(async (staffId) => {
@@ -602,6 +611,16 @@ export default function EnhancedServiceForm({
         </Button>
 
         <div className="flex gap-3">
+          {mode === "edit" && (
+            <Button
+              onClick={handleSubmit}
+              disabled={isSaving || uniqueStaffIds.length === 0}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              {isSaving ? "Saving..." : "Update Service"}
+            </Button>
+          )}
+
           {currentStep < steps.length - 1 ? (
             <Button
               type="button"
@@ -612,19 +631,15 @@ export default function EnhancedServiceForm({
             >
               Next Step
             </Button>
-          ) : (
+          ) : mode === "create" ? (
             <Button
               onClick={handleSubmit}
-              disabled={isSaving}
+              disabled={isSaving || uniqueStaffIds.length === 0}
               className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
-              {isSaving
-                ? "Saving..."
-                : mode === "create"
-                  ? "Create Service"
-                  : "Update Service"}
+              {isSaving ? "Saving..." : "Create Service"}
             </Button>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
