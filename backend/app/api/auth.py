@@ -12,7 +12,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from passlib.context import CryptContext
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import secrets
 import uuid
 import hashlib
@@ -21,12 +21,26 @@ import httpx
 from app.core.database import get_db
 from app.core.auth import get_current_user, resolve_token
 from app.core.config import settings
+from app.core.email import send_email
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SESSION_DAYS = 30
 RESET_TOKEN_MINUTES = 60
+VERIFY_TOKEN_HOURS = 24
+MAGIC_LINK_TOKEN_MINUTES = settings.MAGIC_LINK_TOKEN_MINUTES
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def is_expired(expires_at: datetime) -> bool:
+    now = utc_now()
+    if expires_at.tzinfo is None:
+        return expires_at < now.replace(tzinfo=None)
+    return expires_at < now
 
 
 # =========================
@@ -53,6 +67,22 @@ class PasswordResetRequestBody(BaseModel):
 class PasswordResetConfirmBody(BaseModel):
     token: str
     new_password: str
+
+
+class EmailVerificationRequestBody(BaseModel):
+    email: EmailStr
+
+
+class EmailVerificationConfirmBody(BaseModel):
+    token: str
+
+
+class MagicLinkRequestBody(BaseModel):
+    email: EmailStr
+
+
+class MagicLinkConfirmBody(BaseModel):
+    token: str
 
 
 class ProfileUpdateBody(BaseModel):
@@ -82,6 +112,58 @@ def create_session_token() -> str:
 
 def hash_reset_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def create_verification_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def hash_verification_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _verification_link(token: str) -> str:
+    base = settings.APP_URL.rstrip("/")
+    return f"{base}/auth/verify-email?token={token}"
+
+
+def send_verification_email(recipient: str, token: str) -> None:
+    link = _verification_link(token)
+    subject = "Verify your email"
+    body = (
+        "Hello,\n\n"
+        "Please verify your email address by clicking the link below:\n"
+        f"{link}\n\n"
+        f"This link expires in {VERIFY_TOKEN_HOURS} hours.\n\n"
+        "If you did not create an account, you can ignore this email."
+    )
+    send_email(recipient, subject, body)
+
+
+def create_magic_link_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def hash_magic_link_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _magic_link_url(token: str) -> str:
+    base = settings.APP_URL.rstrip("/")
+    return f"{base}/auth/magic-link?token={token}"
+
+
+def send_magic_link_email(recipient: str, token: str) -> None:
+    link = _magic_link_url(token)
+    subject = "Your sign-in link"
+    body = (
+        "Hello,\n\n"
+        "Use the link below to sign in:\n"
+        f"{link}\n\n"
+        f"This link expires in {MAGIC_LINK_TOKEN_MINUTES} minutes.\n\n"
+        "If you did not request this email, you can ignore it."
+    )
+    send_email(recipient, subject, body)
 
 
 def verify_google_token(id_token: str) -> dict:
@@ -150,8 +232,8 @@ def signup(
 
     user = db.execute(
         text("""
-            INSERT INTO users (id, email, full_name, role, phone, timezone, password_hash)
-            VALUES (:id, :email, :full_name, :role, :phone, :timezone, :password_hash)
+            INSERT INTO users (id, email, full_name, role, phone, timezone, password_hash, email_verified)
+            VALUES (:id, :email, :full_name, :role, :phone, :timezone, :password_hash, FALSE)
             RETURNING id, email, full_name, role, phone, avatar_url, timezone
         """),
         {
@@ -164,9 +246,65 @@ def signup(
             "password_hash": password_hash,
         },
     ).fetchone()
+    verification_token = create_verification_token()
+    verification_hash = hash_verification_token(verification_token)
+    expires_at = utc_now() + timedelta(hours=VERIFY_TOKEN_HOURS)
+
+    db.execute(
+        text(
+            """
+            INSERT INTO email_verification_tokens (id, user_id, token_hash, expires_at)
+            VALUES (:id, :user_id, :token_hash, :expires_at)
+            """
+        ),
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": user.id,
+            "token_hash": verification_hash,
+            "expires_at": expires_at,
+        },
+    )
+    db.commit()
+
+    try:
+        send_verification_email(payload.email, verification_token)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Unable to send verification email")
+
+    response.delete_cookie("auth_token", path="/")
+    return {"user": dict(user._mapping), "message": "Verification email sent"}
+
+
+# =========================
+# Login
+# =========================
+
+@router.post("/login")
+def login(
+    response: Response,
+    payload: LoginBody = Body(...),
+    db: Session = Depends(get_db),
+):
+    user = db.execute(
+        text("""
+            SELECT id, email, full_name, role, phone, avatar_url, timezone, password_hash, is_active, email_verified
+            FROM users
+            WHERE email = :email
+        """),
+        {"email": payload.email},
+    ).fetchone()
+
+    if not user or not user.password_hash or not pwd_context.verify(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is disabled")
+
+    if not user.email_verified:
+        raise HTTPException(status_code=403, detail="Email not verified")
 
     token = create_session_token()
-    expires_at = datetime.utcnow() + timedelta(days=SESSION_DAYS)
+    expires_at = utc_now() + timedelta(days=SESSION_DAYS)
 
     db.execute(
         text("""
@@ -187,7 +325,7 @@ def signup(
         value=token,
         httponly=True,
         samesite="lax",
-        secure=False,   # set True in production (HTTPS)
+        secure=False,
         path="/",
         max_age=SESSION_DAYS * 24 * 60 * 60,
     )
@@ -196,38 +334,129 @@ def signup(
 
 
 # =========================
-# Login
+# Passwordless magic link
 # =========================
 
-@router.post("/login")
-def login(
-    response: Response,
-    payload: LoginBody = Body(...),
+@router.post("/magic-link/request")
+def request_magic_link(
+    payload: MagicLinkRequestBody,
     db: Session = Depends(get_db),
 ):
-    user = db.execute(
-        text("""
-            SELECT id, email, full_name, role, phone, avatar_url, timezone, password_hash, is_active
-            FROM users
-            WHERE email = :email
-        """),
+    record = db.execute(
+        text("SELECT id, is_active FROM users WHERE email = :email"),
         {"email": payload.email},
     ).fetchone()
 
-    if not user or not user.password_hash or not pwd_context.verify(payload.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+    if record and not record.is_active:
+        return {"message": "If the account exists, a login link will be sent."}
 
-    if not user.is_active:
-        raise HTTPException(status_code=403, detail="Account is disabled")
+    user_id = record.id if record else None
+    if not user_id:
+        role = "customer"
+        role_exists = db.execute(
+            text("SELECT 1 FROM roles WHERE name = :role"),
+            {"role": role},
+        ).fetchone()
+        if not role_exists:
+            raise HTTPException(status_code=500, detail="Default role is not configured")
 
-    token = create_session_token()
-    expires_at = datetime.utcnow() + timedelta(days=SESSION_DAYS)
+        user_id = str(uuid.uuid4())
+        db.execute(
+            text(
+                """
+                INSERT INTO users (id, email, role, email_verified, is_active)
+                VALUES (:id, :email, :role, FALSE, TRUE)
+                """
+            ),
+            {
+                "id": user_id,
+                "email": payload.email,
+                "role": role,
+            },
+        )
+
+    magic_token = create_magic_link_token()
+    token_hash = hash_magic_link_token(magic_token)
+    expires_at = utc_now() + timedelta(minutes=MAGIC_LINK_TOKEN_MINUTES)
 
     db.execute(
-        text("""
+        text(
+            """
+            INSERT INTO magic_link_tokens (id, user_id, token_hash, expires_at)
+            VALUES (:id, :user_id, :token_hash, :expires_at)
+            """
+        ),
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": user_id,
+            "token_hash": token_hash,
+            "expires_at": expires_at,
+        },
+    )
+    db.commit()
+
+    try:
+        send_magic_link_email(payload.email, magic_token)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Unable to send login link")
+
+    return {"message": "If the account exists, a login link will be sent."}
+
+
+@router.post("/magic-link/confirm")
+def confirm_magic_link(
+    response: Response,
+    payload: MagicLinkConfirmBody,
+    db: Session = Depends(get_db),
+):
+    token_hash = hash_magic_link_token(payload.token)
+    record = db.execute(
+        text(
+            """
+            SELECT id, user_id, expires_at, used_at
+            FROM magic_link_tokens
+            WHERE token_hash = :token_hash
+            """
+        ),
+        {"token_hash": token_hash},
+    ).fetchone()
+
+    if not record or record.used_at is not None or is_expired(record.expires_at):
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+
+    user = db.execute(
+        text(
+            """
+            SELECT id, email, full_name, role, phone, avatar_url, timezone, is_active
+            FROM users
+            WHERE id = :id
+            """
+        ),
+        {"id": record.user_id},
+    ).fetchone()
+
+    if not user or not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is disabled")
+
+    db.execute(
+        text("UPDATE users SET email_verified = TRUE WHERE id = :id"),
+        {"id": user.id},
+    )
+    db.execute(
+        text("UPDATE magic_link_tokens SET used_at = :used_at WHERE id = :id"),
+        {"used_at": utc_now(), "id": record.id},
+    )
+
+    token = create_session_token()
+    expires_at = utc_now() + timedelta(days=SESSION_DAYS)
+
+    db.execute(
+        text(
+            """
             INSERT INTO sessions (id, user_id, token, expires_at)
             VALUES (:id, :user_id, :token, :expires_at)
-        """),
+            """
+        ),
         {
             "id": str(uuid.uuid4()),
             "user_id": user.id,
@@ -273,7 +502,7 @@ def google_login(
     user = db.execute(
         text(
             """
-            SELECT id, email, full_name, role, phone, avatar_url, timezone, password_hash, is_active
+            SELECT id, email, full_name, role, phone, avatar_url, timezone, password_hash, is_active, email_verified
             FROM users
             WHERE email = :email
             """
@@ -294,8 +523,8 @@ def google_login(
         user = db.execute(
             text(
                 """
-                INSERT INTO users (id, email, full_name, role, avatar_url)
-                VALUES (:id, :email, :full_name, :role, :avatar_url)
+                INSERT INTO users (id, email, full_name, role, avatar_url, email_verified)
+                VALUES (:id, :email, :full_name, :role, :avatar_url, TRUE)
                 RETURNING id, email, full_name, role, phone, avatar_url, timezone
                 """
             ),
@@ -310,6 +539,11 @@ def google_login(
     else:
         if not user.is_active:
             raise HTTPException(status_code=403, detail="Account is disabled")
+        if not user.email_verified:
+            db.execute(
+                text("UPDATE users SET email_verified = TRUE WHERE id = :id"),
+                {"id": user.id},
+            )
         if avatar_url and not user.avatar_url:
             db.execute(
                 text("UPDATE users SET avatar_url = :avatar_url WHERE id = :id"),
@@ -317,7 +551,7 @@ def google_login(
             )
 
     token = create_session_token()
-    expires_at = datetime.utcnow() + timedelta(days=SESSION_DAYS)
+    expires_at = utc_now() + timedelta(days=SESSION_DAYS)
 
     db.execute(
         text(
@@ -472,7 +706,7 @@ def request_password_reset(
     if user:
         reset_token = secrets.token_urlsafe(32)
         token_hash = hash_reset_token(reset_token)
-        expires_at = datetime.utcnow() + timedelta(minutes=RESET_TOKEN_MINUTES)
+        expires_at = utc_now() + timedelta(minutes=RESET_TOKEN_MINUTES)
 
         db.execute(
             text(
@@ -518,7 +752,7 @@ def confirm_password_reset(
         {"token_hash": token_hash},
     ).fetchone()
 
-    if not record or record.used_at is not None or record.expires_at < datetime.utcnow():
+    if not record or record.used_at is not None or is_expired(record.expires_at):
         raise HTTPException(status_code=400, detail="Invalid or expired token")
 
     password_hash = pwd_context.hash(payload.new_password)
@@ -529,7 +763,7 @@ def confirm_password_reset(
     )
     db.execute(
         text("UPDATE password_reset_tokens SET used_at = :used_at WHERE id = :id"),
-        {"used_at": datetime.utcnow(), "id": record.id},
+        {"used_at": utc_now(), "id": record.id},
     )
     db.execute(
         text("DELETE FROM sessions WHERE user_id = :user_id"),
@@ -538,6 +772,84 @@ def confirm_password_reset(
     db.commit()
 
     return {"message": "Password updated"}
+
+
+# =========================
+# Email verification
+# =========================
+
+@router.post("/verify-email/request")
+def request_email_verification(
+    payload: EmailVerificationRequestBody,
+    db: Session = Depends(get_db),
+):
+    record = db.execute(
+        text("SELECT id, email_verified FROM users WHERE email = :email"),
+        {"email": payload.email},
+    ).fetchone()
+
+    if not record or record.email_verified:
+        return {"message": "If the account exists, a verification email will be sent."}
+
+    verification_token = create_verification_token()
+    verification_hash = hash_verification_token(verification_token)
+    expires_at = utc_now() + timedelta(hours=VERIFY_TOKEN_HOURS)
+
+    db.execute(
+        text(
+            """
+            INSERT INTO email_verification_tokens (id, user_id, token_hash, expires_at)
+            VALUES (:id, :user_id, :token_hash, :expires_at)
+            """
+        ),
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": record.id,
+            "token_hash": verification_hash,
+            "expires_at": expires_at,
+        },
+    )
+    db.commit()
+
+    try:
+        send_verification_email(payload.email, verification_token)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Unable to send verification email")
+
+    return {"message": "If the account exists, a verification email will be sent."}
+
+
+@router.post("/verify-email/confirm")
+def confirm_email_verification(
+    payload: EmailVerificationConfirmBody,
+    db: Session = Depends(get_db),
+):
+    token_hash = hash_verification_token(payload.token)
+    record = db.execute(
+        text(
+            """
+            SELECT id, user_id, expires_at, used_at
+            FROM email_verification_tokens
+            WHERE token_hash = :token_hash
+            """
+        ),
+        {"token_hash": token_hash},
+    ).fetchone()
+
+    if not record or record.used_at is not None or is_expired(record.expires_at):
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+
+    db.execute(
+        text("UPDATE users SET email_verified = TRUE WHERE id = :user_id"),
+        {"user_id": record.user_id},
+    )
+    db.execute(
+        text("UPDATE email_verification_tokens SET used_at = :used_at WHERE id = :id"),
+        {"used_at": utc_now(), "id": record.id},
+    )
+    db.commit()
+
+    return {"message": "Email verified"}
 
 
 # =========================

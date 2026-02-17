@@ -80,25 +80,36 @@ Visit `http://localhost:8000/docs` for interactive API documentation (Swagger UI
 - **ABA Payway**: Payment processing is mocked. Real integration would require actual API credentials.
 - **Email/SMS**: Notifications are logged to database. Real integration would require email/SMS provider.
 
+# Passwordless Email Login
+
+The API supports passwordless login via magic link (SMTP required):
+
+- `POST /api/auth/magic-link/request` - Send login link to email
+- `POST /api/auth/magic-link/confirm` - Exchange token for a session
+
+Ensure `APP_URL` and SMTP settings are configured in `backend/.env`.
+
 # How to run for backend
 
 docker compose up --build
 
 docker compose down -v
 
-# Re-run the migrate and seeder without wiping data:
-
-docker compose down -v
+# Re-run migrations and seed roles/permissions (no demo users):
 
 docker compose up -d
 
-docker compose restart backend
-
-docker compose up -d --build
-
 docker compose exec backend python -m app.seed
 
-docker compose exec backend python -m app.seed
+docker compose exec backend python -m app.seed_admin_user
+
+# Bootstrap an initial admin/superadmin (one-time):
+
+docker compose exec backend python -m app.bootstrap_admin --email you@example.com --password "ChangeMe123!" --role superadmin --full-name "Initial Admin"
+
+# Remove legacy seeded users by email (if they exist):
+
+docker compose exec backend python -m app.purge_seeded_users --confirm
 
 # How to run for frontend
 

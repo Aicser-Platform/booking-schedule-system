@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS public.role_permissions (
 CREATE TABLE IF NOT EXISTS public.users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email VARCHAR(150) NOT NULL UNIQUE,
+  email_verified BOOLEAN DEFAULT TRUE,
   full_name VARCHAR(150),
   phone VARCHAR(50),
   avatar_url VARCHAR(255),
@@ -81,6 +82,26 @@ CREATE TABLE IF NOT EXISTS public.sessions (
 
 -- Password reset tokens
 CREATE TABLE IF NOT EXISTS public.password_reset_tokens (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  token_hash VARCHAR(255) NOT NULL UNIQUE,
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  used_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Email verification tokens
+CREATE TABLE IF NOT EXISTS public.email_verification_tokens (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  token_hash VARCHAR(255) NOT NULL UNIQUE,
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  used_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Passwordless magic link tokens
+CREATE TABLE IF NOT EXISTS public.magic_link_tokens (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
   token_hash VARCHAR(255) NOT NULL UNIQUE,

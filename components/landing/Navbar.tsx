@@ -3,16 +3,19 @@
 import type { MouseEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 
 export function Navbar() {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
+  const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
   const role = user?.role;
   const isStaff = role === "staff";
   const isAdmin = role === "admin" || role === "superadmin";
+  const isCustomer = !!user && !isStaff && !isAdmin;
   const showStaffAdminButton = isStaff || isAdmin || !user;
   const staffAdminLabel = isStaff
     ? "Staff Dashboard"
@@ -24,6 +27,19 @@ export function Navbar() {
     : isAdmin
       ? "/admin/dashboard"
       : "/auth?mode=login";
+
+  const handleLogout = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      await fetch(`${apiUrl}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } finally {
+      await refreshProfile();
+      router.refresh();
+    }
+  };
 
   const handleScroll = (
     event: MouseEvent<HTMLAnchorElement>,
@@ -79,6 +95,17 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-3">
+          {isCustomer && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
+              className="h-10 rounded-full border-border/70 px-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground/70"
+            >
+              Logout
+            </Button>
+          )}
           {showStaffAdminButton && (
             <Button
               asChild

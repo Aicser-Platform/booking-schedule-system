@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     # =========================
     ENV: str = "development"
     DEBUG: bool = False
+    APP_URL: str = "http://localhost:3000"
 
     # =========================
     # Database (REQUIRED)
@@ -28,6 +29,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "dev-secret-key"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    MAGIC_LINK_TOKEN_MINUTES: int = 15
 
     # =========================
     # Supabase (disabled / optional)
@@ -76,6 +78,15 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins_list(self) -> List[str]:
-        return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
+        raw = self.CORS_ORIGINS.strip()
+        if raw.startswith("[") and raw.endswith("]"):
+            raw = raw[1:-1]
+
+        origins: List[str] = []
+        for part in raw.split(","):
+            cleaned = part.strip().strip('"').strip("'")
+            if cleaned:
+                origins.append(cleaned)
+        return origins
 
 settings = Settings()

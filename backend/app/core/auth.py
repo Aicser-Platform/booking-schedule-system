@@ -21,7 +21,7 @@ def get_user_by_token(db: Session, token: str):
         text(
             """
             SELECT u.id, u.email, u.full_name, u.role, u.phone, u.avatar_url,
-                   u.timezone, u.is_active, u.created_at
+                   u.timezone, u.is_active, u.email_verified, u.created_at
             FROM users u
             JOIN sessions s ON s.user_id = u.id
             WHERE s.token = :token AND s.expires_at > NOW()
@@ -47,6 +47,8 @@ def get_current_user(
     user_dict = dict(user._mapping)
     if not user_dict.get("is_active", True):
         raise HTTPException(status_code=403, detail="Account is disabled")
+    if not user_dict.get("email_verified", True):
+        raise HTTPException(status_code=403, detail="Email not verified")
 
     return user_dict
 

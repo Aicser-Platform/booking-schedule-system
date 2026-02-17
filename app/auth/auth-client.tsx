@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/components/auth/auth-provider";
 import {
   DEMO_AUTO_SUBMIT,
   DEMO_ENABLED,
@@ -52,8 +53,30 @@ const spaceGrotesk = Space_Grotesk({
   weight: ["400", "500", "600", "700"],
 });
 
+const GoogleLogo = ({ className }: { className?: string }) => (
+  <svg aria-hidden="true" viewBox="0 0 48 48" className={className}>
+    <path
+      fill="#EA4335"
+      d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"
+    />
+    <path
+      fill="#4285F4"
+      d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M10.53 28.59c-.48-1.45-.76-3-.76-4.59s.27-3.14.76-4.59l-7.98-6.19A23.94 23.94 0 0 0 0 24c0 3.92.94 7.63 2.56 10.78l7.97-6.19z"
+    />
+    <path
+      fill="#34A853"
+      d="M24 48c6.48 0 11.93-2.14 15.9-5.81l-7.73-6c-2.15 1.45-4.9 2.3-8.17 2.3-6.26 0-11.57-3.58-13.47-8.64l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
+    />
+  </svg>
+);
+
 export default function AuthClient({ initialMode }: AuthClientProps) {
   const router = useRouter();
+  const { refreshProfile } = useAuth();
   const searchParams = useSearchParams();
   const modeParam = searchParams.get("mode");
   const [mode, setMode] = useState<Mode>(initialMode);
@@ -62,9 +85,17 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [magicLinkLoading, setMagicLinkLoading] = useState(false);
+  const [magicLinkMessage, setMagicLinkMessage] = useState<string | null>(null);
+  const [magicLinkStatus, setMagicLinkStatus] = useState<
+    "success" | "error" | null
+  >(null);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
   const googleInitialized = useRef(false);
+  const loginEmailRef = useRef<HTMLInputElement | null>(null);
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
   const [fullName, setFullName] = useState("");
@@ -95,7 +126,6 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
     }
   }, [modeParam]);
 
-
   const handleModeChange = (nextMode: Mode) => {
     if (nextMode === mode) {
       return;
@@ -104,6 +134,8 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
     setMode(nextMode);
     setLoginError(null);
     setSignupError(null);
+    setMagicLinkMessage(null);
+    setMagicLinkStatus(null);
 
     const params = new URLSearchParams(searchParams.toString());
     params.set("mode", nextMode);
@@ -114,6 +146,7 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
   const submitLogin = async (email: string, password: string) => {
     setLoginLoading(true);
     setLoginError(null);
+    setResendMessage(null);
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -126,51 +159,75 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
       });
 
       if (!res.ok) {
-        let message = "Invalid email or password";
+        let message = "Unable to sign in. Please try again.";
+        if (res.status === 401) {
+          message = "Invalid email or password";
+        } else if (res.status === 403) {
+          message = "Your account cannot sign in yet.";
+        }
         try {
           const data = await res.json();
-          message = data?.detail || data?.message || message;
+          const detail = data?.detail || data?.message;
+          if (typeof detail === "string" && detail.trim()) {
+            if (detail === "Email not verified") {
+              message = "Email not verified";
+            } else if (res.status === 403 && detail === "Account is disabled") {
+              message = "Your account is disabled. Please contact support.";
+            } else {
+              message = detail;
+            }
+          }
         } catch {}
         throw new Error(message);
       }
 
+      await refreshProfile();
       await redirectAfterAuth();
     } catch (err: unknown) {
-      setLoginError(err instanceof Error ? err.message : "An error occurred");
+      if (err instanceof TypeError) {
+        setLoginError("Unable to connect to the server. Please try again.");
+      } else {
+        setLoginError(err instanceof Error ? err.message : "An error occurred");
+      }
     } finally {
       setLoginLoading(false);
     }
   };
 
-  const handleGoogleCredential = useCallback(async (credential: string) => {
-    setGoogleLoading(true);
-    setLoginError(null);
+  const handleGoogleCredential = useCallback(
+    async (credential: string) => {
+      setGoogleLoading(true);
+      setLoginError(null);
 
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const res = await fetch(`${apiUrl}/api/auth/google`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ credential }),
-      });
+      try {
+        const apiUrl =
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const res = await fetch(`${apiUrl}/api/auth/google`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ credential }),
+        });
 
-      if (!res.ok) {
-        let message = "Google login failed";
-        try {
-          const data = await res.json();
-          message = data?.detail || data?.message || message;
-        } catch {}
-        throw new Error(message);
+        if (!res.ok) {
+          let message = "Google login failed";
+          try {
+            const data = await res.json();
+            message = data?.detail || data?.message || message;
+          } catch {}
+          throw new Error(message);
+        }
+
+        await refreshProfile();
+        await redirectAfterAuth();
+      } catch (err: unknown) {
+        setLoginError(err instanceof Error ? err.message : "An error occurred");
+      } finally {
+        setGoogleLoading(false);
       }
-
-      await redirectAfterAuth();
-    } catch (err: unknown) {
-      setLoginError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setGoogleLoading(false);
-    }
-  }, [redirectAfterAuth]);
+    },
+    [redirectAfterAuth, refreshProfile],
+  );
 
   const handleGoogleLogin = () => {
     if (!googleClientId) {
@@ -234,10 +291,64 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
     await submitLogin(loginEmail, loginPassword);
   };
 
+  const handleEmailLogin = () => {
+    if (!loginEmailRef.current) {
+      return;
+    }
+    loginEmailRef.current.focus();
+    loginEmailRef.current.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  };
+
+  const requestMagicLink = async () => {
+    if (!loginEmail) {
+      handleEmailLogin();
+      setMagicLinkStatus("error");
+      setMagicLinkMessage("Enter your email address to receive a login link.");
+      return;
+    }
+
+    setMagicLinkLoading(true);
+    setMagicLinkMessage(null);
+    setMagicLinkStatus(null);
+    setLoginError(null);
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const res = await fetch(`${apiUrl}/api/auth/magic-link/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail }),
+      });
+
+      if (!res.ok) {
+        let message = "Unable to send login link.";
+        try {
+          const data = await res.json();
+          message = data?.detail || data?.message || message;
+        } catch {}
+        throw new Error(message);
+      }
+
+      setMagicLinkStatus("success");
+      setMagicLinkMessage("Check your email for a sign-in link.");
+    } catch (err: unknown) {
+      setMagicLinkStatus("error");
+      setMagicLinkMessage(
+        err instanceof Error ? err.message : "An error occurred",
+      );
+    } finally {
+      setMagicLinkLoading(false);
+    }
+  };
+
   const handleDemoLogin = (email: string, password: string) => {
     setLoginEmail(email);
     setLoginPassword(password);
     setLoginError(null);
+    setResendMessage(null);
     setSignupError(null);
 
     if (mode !== "login") {
@@ -286,7 +397,58 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
       });
 
       if (!res.ok) {
-        let message = "Failed to create account";
+        let message = "Unable to create your account. Please try again.";
+        if (res.status === 409) {
+          message =
+            "An account with this email already exists. Try logging in instead.";
+        }
+        try {
+          const data = await res.json();
+          const detail = data?.detail || data?.message;
+          if (
+            typeof detail === "string" &&
+            detail.trim() &&
+            !(res.status === 409 && detail === "Email already exists")
+          ) {
+            message = detail;
+          }
+        } catch {}
+        throw new Error(message);
+      }
+
+      router.push("/auth/signup-success");
+    } catch (err: unknown) {
+      if (err instanceof TypeError) {
+        setSignupError("Unable to connect to the server. Please try again.");
+      } else {
+        setSignupError(
+          err instanceof Error ? err.message : "An error occurred",
+        );
+      }
+    } finally {
+      setSignupLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!loginEmail) {
+      setResendMessage("Enter your email address first.");
+      return;
+    }
+
+    setResendLoading(true);
+    setResendMessage(null);
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const res = await fetch(`${apiUrl}/api/auth/verify-email/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail }),
+      });
+
+      if (!res.ok) {
+        let message = "Unable to send verification email.";
         try {
           const data = await res.json();
           message = data?.detail || data?.message || message;
@@ -294,11 +456,15 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
         throw new Error(message);
       }
 
-      router.push("/auth/signup-success");
+      setResendMessage(
+        "If the account exists, a verification email has been sent.",
+      );
     } catch (err: unknown) {
-      setSignupError(err instanceof Error ? err.message : "An error occurred");
+      setResendMessage(
+        err instanceof Error ? err.message : "An error occurred",
+      );
     } finally {
-      setSignupLoading(false);
+      setResendLoading(false);
     }
   };
 
@@ -371,6 +537,32 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
                 {mode === "login" ? (
                   <form onSubmit={handleLogin}>
                     <div className="flex flex-col gap-5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-11 w-full rounded-xl border-border/60 bg-background text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-foreground/80 transition hover:border-border hover:text-foreground"
+                        onClick={requestMagicLink}
+                        disabled={loginLoading || magicLinkLoading}
+                      >
+                        <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-border/60 bg-muted text-foreground">
+                          <Mail className="h-3.5 w-3.5" />
+                        </span>
+                        {magicLinkLoading
+                          ? "Sending link..."
+                          : "Continue with email"}
+                      </Button>
+                      {magicLinkMessage && (
+                        <div
+                          className={`rounded-xl border px-4 py-3 text-xs ${
+                            magicLinkStatus === "error"
+                              ? "border-destructive/30 bg-destructive/10 text-destructive"
+                              : "border-border/60 bg-muted/40 text-muted-foreground"
+                          }`}
+                        >
+                          {magicLinkMessage}
+                        </div>
+                      )}
+
                       <div className="grid gap-2">
                         <Label
                           htmlFor="login-email"
@@ -388,6 +580,7 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
                             value={loginEmail}
                             onChange={(e) => setLoginEmail(e.target.value)}
                             disabled={loginLoading}
+                            ref={loginEmailRef}
                             className="h-11 rounded-xl border-border bg-muted pl-10 text-foreground placeholder:text-muted-foreground/70 focus-visible:border-primary/60 focus-visible:ring-primary/20"
                           />
                         </div>
@@ -433,6 +626,26 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
                       {loginError && (
                         <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                           {loginError}
+                          {loginError === "Email not verified" && (
+                            <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="h-9 w-full rounded-lg border-border/60 bg-background text-[0.6rem] font-semibold uppercase tracking-[0.25em] text-foreground/80 transition hover:border-border hover:text-foreground"
+                                onClick={handleResendVerification}
+                                disabled={resendLoading}
+                              >
+                                {resendLoading
+                                  ? "Sending..."
+                                  : "Resend verification email"}
+                              </Button>
+                              {resendMessage && (
+                                <p className="text-center text-xs text-muted-foreground">
+                                  {resendMessage}
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -457,12 +670,16 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
                             variant="outline"
                             className="h-11 w-full rounded-xl border-border/60 bg-background text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-foreground/80 transition hover:border-border hover:text-foreground"
                             onClick={handleGoogleLogin}
-                            disabled={!googleReady || googleLoading || loginLoading}
+                            disabled={
+                              !googleReady || googleLoading || loginLoading
+                            }
                           >
-                            <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-border/60 bg-muted text-xs font-semibold text-foreground">
-                              G
+                            <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-border/60 bg-white">
+                              <GoogleLogo className="h-4 w-4" />
                             </span>
-                            {googleLoading ? "Connecting..." : "Continue with Google"}
+                            {googleLoading
+                              ? "Connecting..."
+                              : "Continue with Google"}
                           </Button>
                         </>
                       )}
@@ -474,7 +691,7 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
                           Demo accounts (testing only)
                         </p>
                         <p className="mt-2 text-xs text-muted-foreground">
-                          Tap to auto-fill seeded credentials.
+                          Tap to auto-fill demo credentials.
                         </p>
                         <div className="mt-4 grid gap-2 sm:grid-cols-3">
                           {demoAccounts.map((account) => (
@@ -484,10 +701,7 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
                               variant="outline"
                               className="h-10 rounded-full border-border/60 bg-background text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-foreground/80 transition hover:border-border hover:text-foreground"
                               onClick={() =>
-                                handleDemoLogin(
-                                  account.email,
-                                  account.password,
-                                )
+                                handleDemoLogin(account.email, account.password)
                               }
                             >
                               {account.label}
@@ -647,12 +861,16 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
                             variant="outline"
                             className="h-11 w-full rounded-xl border-border/60 bg-background text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-foreground/80 transition hover:border-border hover:text-foreground"
                             onClick={handleGoogleLogin}
-                            disabled={!googleReady || googleLoading || signupLoading}
+                            disabled={
+                              !googleReady || googleLoading || signupLoading
+                            }
                           >
-                            <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-border/60 bg-muted text-xs font-semibold text-foreground">
-                              G
+                            <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-border/60 bg-white">
+                              <GoogleLogo className="h-4 w-4" />
                             </span>
-                            {googleLoading ? "Connecting..." : "Continue with Google"}
+                            {googleLoading
+                              ? "Connecting..."
+                              : "Continue with Google"}
                           </Button>
                         </>
                       )}
@@ -664,7 +882,8 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
                           Demo accounts (testing only)
                         </p>
                         <p className="mt-2 text-xs text-muted-foreground">
-                          Use a pre-seeded account to preview the experience.
+                          Use a configured demo account to preview the
+                          experience.
                         </p>
                         <div className="mt-4 grid gap-2 sm:grid-cols-3">
                           {demoAccounts.map((account) => (
@@ -674,10 +893,7 @@ export default function AuthClient({ initialMode }: AuthClientProps) {
                               variant="outline"
                               className="h-10 rounded-full border-border/60 bg-background text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-foreground/80 transition hover:border-border hover:text-foreground"
                               onClick={() =>
-                                handleDemoLogin(
-                                  account.email,
-                                  account.password,
-                                )
+                                handleDemoLogin(account.email, account.password)
                               }
                             >
                               {account.label}

@@ -15,8 +15,10 @@
    - Run scripts in order:
      - `scripts/001_create_tables.sql`
      - `scripts/002_enable_rls.sql`
-     - `scripts/003_create_profile_trigger.sql`
-     - `scripts/004_seed_data.sql` (optional - adds sample data)
+    - `scripts/003_create_profile_trigger.sql`
+    - `scripts/004_seed_data.sql` (optional - adds sample data)
+    - `scripts/005_add_email_verification.sql` (required for existing databases)
+     - `scripts/006_add_magic_link.sql` (required for passwordless login)
 
 3. **Configure Authentication**
    - Go to Authentication > Settings
@@ -43,6 +45,7 @@ SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 SECRET_KEY=generate-a-random-secret-key
 CORS_ORIGINS=["http://localhost:3000"]
+APP_URL=http://localhost:3000
 ABA_PAYWAY_MERCHANT_ID=your-merchant-id
 ABA_PAYWAY_API_KEY=your-api-key
 ```
@@ -109,6 +112,14 @@ To enable real notifications:
 2. Choose SMS provider (Twilio, AWS SNS, etc.)
 3. Update `backend/app/api/notifications.py`
 4. Add API credentials to environment variables
+
+### Passwordless Login (Optional)
+
+The backend supports passwordless login via magic link emails. To enable it:
+
+1. Configure SMTP settings in `backend/.env`
+2. Ensure `APP_URL` is set (used for the login link)
+3. Run `scripts/006_add_magic_link.sql` on existing databases
 
 ### 9. Production Deployment
 
