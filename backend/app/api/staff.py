@@ -13,6 +13,7 @@ from app.models.schemas import (
     StaffServiceOverrideUpdate,
     StaffServiceOverrideResponse,
 )
+from app.core.config import settings
 import uuid
 
 router = APIRouter()
@@ -23,12 +24,25 @@ def _ensure_staff_or_admin(current_user: dict, staff_id: str) -> None:
     if current_user.get("id") != staff_id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
+def _normalize_uuid_fields(row: dict, fields: list[str]) -> dict:
+    for field in fields:
+        if row.get(field) is not None:
+            row[field] = str(row[field])
+    return row
+
 @router.get("/dashboard")
 async def staff_dashboard(
     current_user: dict = Depends(require_roles("staff", "admin", "superadmin")),
     db: Session = Depends(get_db),
 ):
     """Staff dashboard summary (staff/admin only)"""
+    if settings.FEATURE_SET != "full":
+        return {
+            "todayBookings": [],
+            "upcomingBookings": [],
+            "totalRevenue": 0.0,
+            "totalBookings": 0,
+        }
     staff_id = current_user.get("id")
 
     today_result = db.execute(
@@ -179,7 +193,10 @@ async def assign_staff_to_service(
         db.rollback()
         raise HTTPException(status_code=400, detail="Unable to assign staff to service")
 
-    return dict(result._mapping)
+    return _normalize_uuid_fields(
+        dict(result._mapping),
+        ["id", "staff_id", "service_id"],
+    )
 
 @router.put("/services/{assignment_id}", response_model=StaffServiceResponse)
 async def update_staff_service_assignment(
@@ -233,7 +250,10 @@ async def update_staff_service_assignment(
         text("SELECT * FROM staff_services WHERE id = :id"),
         {"id": assignment_id},
     ).fetchone()
-    return dict(updated._mapping)
+    return _normalize_uuid_fields(
+        dict(updated._mapping),
+        ["id", "staff_id", "service_id"],
+    )
 
 @router.get("/services/{staff_id}", response_model=List[dict])
 async def get_staff_services(
@@ -264,7 +284,10 @@ async def get_staff_services(
     )
     
     services = result.fetchall()
-    return [dict(row._mapping) for row in services]
+    return [
+        _normalize_uuid_fields(dict(row._mapping), ["id", "assignment_id"])
+        for row in services
+    ]
 
 @router.delete("/services/{assignment_id}")
 async def remove_staff_from_service(
@@ -305,12 +328,12 @@ async def get_service_staff(service_id: str, db: Session = Depends(get_db)):
     staff = result.fetchall()
     return [
         {
-            "id": row[0],
+            "id": str(row[0]) if row[0] is not None else None,
             "full_name": row[1],
             "phone": row[2],
             "avatar_url": row[3],
             "role": row[4],
-            "assignment_id": row[5],
+            "assignment_id": str(row[5]) if row[5] is not None else None,
             "price_override": row[6],
             "deposit_override": row[7],
             "duration_override": row[8],
@@ -366,7 +389,10 @@ async def create_staff_service_override(
         text("SELECT * FROM staff_service_overrides WHERE id = :id"),
         {"id": override_id},
     ).fetchone()
-    return dict(created._mapping)
+    return _normalize_uuid_fields(
+        dict(created._mapping),
+        ["id", "staff_id", "service_id"],
+    )
 
 @router.put("/overrides/{override_id}", response_model=StaffServiceOverrideResponse)
 async def update_staff_service_override(
@@ -422,7 +448,10 @@ async def update_staff_service_override(
         text("SELECT * FROM staff_service_overrides WHERE id = :id"),
         {"id": override_id},
     ).fetchone()
-    return dict(updated._mapping)
+    return _normalize_uuid_fields(
+        dict(updated._mapping),
+        ["id", "staff_id", "service_id"],
+    )
 
 @router.get("/overrides/{staff_id}", response_model=List[StaffServiceOverrideResponse])
 async def list_staff_service_overrides(
@@ -442,7 +471,10 @@ async def list_staff_service_overrides(
         ),
         {"staff_id": staff_id},
     )
-    return [dict(row._mapping) for row in result.fetchall()]
+    return [
+        _normalize_uuid_fields(dict(row._mapping), ["id", "staff_id", "service_id"])
+        for row in result.fetchall()
+    ]
 
 @router.delete("/overrides/{override_id}")
 async def delete_staff_service_override(

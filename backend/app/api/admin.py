@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.auth import require_roles
 from app.core.audit import log_audit
 from app.core.database import get_db
+from app.core.config import settings
 from app.models.schemas import LocationCreate, LocationUpdate, LocationResponse
 import uuid
 
@@ -208,6 +209,8 @@ def list_bookings(
     current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db),
 ):
+    if settings.FEATURE_SET != "full":
+        raise HTTPException(status_code=404, detail="Not available in core mode")
     result = db.execute(
         """
         SELECT b.id, b.start_time_utc, b.status, b.payment_status,
@@ -253,6 +256,8 @@ def list_payments(
     current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db),
 ):
+    if settings.FEATURE_SET != "full":
+        raise HTTPException(status_code=404, detail="Not available in core mode")
     result = db.execute(
         """
         SELECT p.id, p.created_at, p.amount, p.status, p.provider,
@@ -290,6 +295,8 @@ def list_reviews(
     current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db),
 ):
+    if settings.FEATURE_SET != "full":
+        raise HTTPException(status_code=404, detail="Not available in core mode")
     result = db.execute(
         """
         SELECT r.id, r.rating, r.comment, r.is_approved, r.created_at,
@@ -322,6 +329,8 @@ def report_bookings(
     current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db),
 ):
+    if settings.FEATURE_SET != "full":
+        raise HTTPException(status_code=404, detail="Not available in core mode")
     result = db.execute(
         """
         SELECT b.id, b.start_time_utc, b.status, b.payment_status,
@@ -345,6 +354,8 @@ def report_financial(
     current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db),
 ):
+    if settings.FEATURE_SET != "full":
+        raise HTTPException(status_code=404, detail="Not available in core mode")
     result = db.execute(
         """
         SELECT p.id, p.booking_id, p.amount, p.currency, p.status, p.provider, p.created_at
@@ -362,6 +373,8 @@ def report_customers(
     current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db),
 ):
+    if settings.FEATURE_SET != "full":
+        raise HTTPException(status_code=404, detail="Not available in core mode")
     result = db.execute(
         """
         SELECT id, full_name, email, phone, timezone, is_blocked, created_at

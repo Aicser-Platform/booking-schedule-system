@@ -1,6 +1,8 @@
 from typing import Optional, Dict, Any
 import uuid
+import json
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 
 def log_audit(
@@ -11,17 +13,20 @@ def log_audit(
     entity_id: Optional[str],
     changes: Optional[Dict[str, Any]] = None,
 ) -> None:
+    payload = None if changes is None else json.dumps(changes)
     db.execute(
-        """
-        INSERT INTO audit_logs (id, actor_id, action, entity_type, entity_id, changes)
-        VALUES (:id, :actor_id, :action, :entity_type, :entity_id, :changes)
-        """,
+        text(
+            """
+            INSERT INTO audit_logs (id, actor_id, action, entity_type, entity_id, changes)
+            VALUES (:id, :actor_id, :action, :entity_type, :entity_id, CAST(:changes AS jsonb))
+            """
+        ),
         {
             "id": str(uuid.uuid4()),
             "actor_id": actor_id,
             "action": action,
             "entity_type": entity_type,
             "entity_id": entity_id,
-            "changes": changes,
+            "changes": payload,
         },
     )

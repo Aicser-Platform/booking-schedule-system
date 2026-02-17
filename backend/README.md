@@ -26,6 +26,19 @@ uvicorn app.main:app --reload
 
 Visit `http://localhost:8000/docs` for interactive API documentation (Swagger UI).
 
+## Schema Profiles (Core vs Full)
+
+- **Core** (`FEATURE_SET=core`): Auth, users, services, staff, availability, locations, audit logs.
+  Uses `scripts/001_create_tables_core.sql`.
+- **Full** (`FEATURE_SET=full`): Everything above + bookings, payments, notifications, analytics, reviews, customers, etc.
+  Uses `scripts/001_create_tables.sql`.
+
+If you switch profiles, drop the DB volume first:
+
+```
+docker compose down -v
+```
+
 ## Endpoints
 
 ### Services
@@ -79,6 +92,61 @@ Visit `http://localhost:8000/docs` for interactive API documentation (Swagger UI
 
 - **ABA Payway**: Payment processing is mocked. Real integration would require actual API credentials.
 - **Email/SMS**: Notifications are logged to database. Real integration would require email/SMS provider.
+
+# Image Moderation (Optional)
+
+Service image uploads can be moderated via `IMAGE_MODERATION_PROVIDER`:
+
+```
+IMAGE_MODERATION_ENABLED=true
+IMAGE_MODERATION_PROVIDER=webhook
+```
+
+## Webhook Provider
+
+```
+IMAGE_MODERATION_PROVIDER=webhook
+IMAGE_MODERATION_WEBHOOK_URL=https://your-moderation-endpoint
+```
+
+The webhook should accept a multipart `file` upload and return JSON:
+
+```
+{"allowed": true/false, "reason": "...", "categories": ["sexual", "violence"]}
+```
+
+## Google Vision SafeSearch
+
+```
+IMAGE_MODERATION_PROVIDER=google
+IMAGE_MODERATION_GOOGLE_THRESHOLD=LIKELY
+IMAGE_MODERATION_GOOGLE_BLOCK_CATEGORIES=adult,violence,racy
+```
+
+Requires `GOOGLE_APPLICATION_CREDENTIALS` to point at a Google service account JSON file.
+
+## AWS Rekognition
+
+```
+IMAGE_MODERATION_PROVIDER=aws
+IMAGE_MODERATION_AWS_MIN_CONFIDENCE=70
+IMAGE_MODERATION_AWS_BLOCK_LABELS=Explicit Nudity,Violence,Visually Disturbing
+IMAGE_MODERATION_AWS_REGION=ap-southeast-1
+```
+
+Requires standard AWS credentials (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) and optionally `AWS_REGION`.
+
+## Azure Content Safety
+
+```
+IMAGE_MODERATION_PROVIDER=azure
+IMAGE_MODERATION_AZURE_SEVERITY_THRESHOLD=4
+IMAGE_MODERATION_AZURE_CATEGORIES=Sexual,Violence
+AZURE_CONTENT_SAFETY_ENDPOINT=https://<resource-name>.cognitiveservices.azure.com
+AZURE_CONTENT_SAFETY_KEY=your-key
+```
+
+If moderation blocks the upload, the API returns a 400 with the reason.
 
 # Passwordless Email Login
 

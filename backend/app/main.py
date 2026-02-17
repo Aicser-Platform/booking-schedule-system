@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-from app.api import auth, users, services, staff, availability, bookings, payments, notifications, analytics, admin, customers
+from app.api import auth, users, services, staff, availability, admin
 from app.core.config import settings
 
 app = FastAPI(title="Appointment Booking API")
@@ -24,12 +24,16 @@ app.include_router(users.router, prefix="/api", tags=["users"])
 app.include_router(services.router, prefix="/api/services")
 app.include_router(staff.router, prefix="/api/staff")
 app.include_router(availability.router, prefix="/api/availability")
-app.include_router(bookings.router, prefix="/api/bookings")
-app.include_router(payments.router, prefix="/api/payments")
-app.include_router(notifications.router, prefix="/api/notifications")
-app.include_router(analytics.router, prefix="/api/analytics")
 app.include_router(admin.router)
-app.include_router(customers.router)
+
+if settings.FEATURE_SET == "full":
+    from app.api import bookings, payments, notifications, analytics, customers
+
+    app.include_router(bookings.router, prefix="/api/bookings")
+    app.include_router(payments.router, prefix="/api/payments")
+    app.include_router(notifications.router, prefix="/api/notifications")
+    app.include_router(analytics.router, prefix="/api/analytics")
+    app.include_router(customers.router)
 
 @app.get("/health")
 def health():

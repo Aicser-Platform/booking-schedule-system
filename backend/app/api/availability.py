@@ -30,6 +30,8 @@ router = APIRouter()
 
 _SLOT_CACHE: Dict[str, Dict[str, object]] = {}
 _SLOT_CACHE_TTL_SECONDS = 60
+BOOKINGS_ENABLED = settings.FEATURE_SET == "full"
+NOTIFICATIONS_ENABLED = settings.FEATURE_SET == "full"
 
 def _normalize_schedule_request_row(row) -> dict:
     row_map = dict(row._mapping)
@@ -500,18 +502,20 @@ def _compute_slots_for_date(
         if not intervals:
             continue
 
-        bookings = db.execute(
-            """
-            SELECT start_time_utc, end_time_utc
-            FROM bookings
-            WHERE staff_id = :staff_id
-              AND start_time_utc < :day_end
-              AND end_time_utc > :day_start
-              AND status NOT IN ('cancelled', 'no-show')
-            """,
-            {"staff_id": staff_id, "day_start": day_start_utc, "day_end": day_end_utc},
-        ).fetchall()
-        booked_intervals = [(b[0], b[1]) for b in bookings]
+        booked_intervals: List[Tuple[datetime, datetime]] = []
+        if BOOKINGS_ENABLED:
+            bookings = db.execute(
+                """
+                SELECT start_time_utc, end_time_utc
+                FROM bookings
+                WHERE staff_id = :staff_id
+                  AND start_time_utc < :day_end
+                  AND end_time_utc > :day_start
+                  AND status NOT IN ('cancelled', 'no-show')
+                """,
+                {"staff_id": staff_id, "day_start": day_start_utc, "day_end": day_end_utc},
+            ).fetchall()
+            booked_intervals = [(b[0], b[1]) for b in bookings]
 
         holds = db.execute(
             """
@@ -1364,17 +1368,19 @@ async def get_available_slots(
             time_ranges = [(rule[0], rule[1], rule[2]) for rule in rules]
         
         # Get existing bookings for this staff on this date
-        bookings_result = db.execute(
-            """
-            SELECT start_time_utc, end_time_utc
-            FROM bookings
-            WHERE staff_id = :staff_id 
-            AND DATE(start_time_utc) = :date
-            AND status NOT IN ('cancelled', 'no-show')
-            """,
-            {"staff_id": staff_id, "date": date}
-        )
-        booked_times = [(row[0], row[1]) for row in bookings_result.fetchall()]
+        booked_times: List[Tuple[datetime, datetime]] = []
+        if BOOKINGS_ENABLED:
+            bookings_result = db.execute(
+                """
+                SELECT start_time_utc, end_time_utc
+                FROM bookings
+                WHERE staff_id = :staff_id 
+                AND DATE(start_time_utc) = :date
+                AND status NOT IN ('cancelled', 'no-show')
+                """,
+                {"staff_id": staff_id, "date": date}
+            )
+            booked_times = [(row[0], row[1]) for row in bookings_result.fetchall()]
         
         # Generate available slots
         for start_time, end_time, rule_timezone in time_ranges:
@@ -1598,26 +1604,28 @@ async def get_availability_calendar(
     start_utc = datetime.combine(start_date, time(0, 0), tzinfo=dt_timezone.utc)
     end_utc = datetime.combine(end_date + timedelta(days=1), time(0, 0), tzinfo=dt_timezone.utc)
 
-    booking_query = """
-        SELECT b.id, b.start_time_utc, b.end_time_utc, b.status,
-               s.name AS service_name,
-               u.id AS staff_id, u.full_name AS staff_name,
-               c.full_name AS customer_name
-        FROM bookings b
-        LEFT JOIN services s ON b.service_id = s.id
-        LEFT JOIN users u ON b.staff_id = u.id
-        LEFT JOIN customers c ON b.customer_id = c.id
-        WHERE b.start_time_utc < :end_utc AND b.end_time_utc > :start_utc
-    """
-    booking_params: Dict[str, object] = {"start_utc": start_utc, "end_utc": end_utc}
-    if staff_id:
-        booking_query += " AND b.staff_id = :staff_id"
-        booking_params["staff_id"] = staff_id
-    if location_id:
-        booking_query += " AND u.location_id = :location_id"
-        booking_params["location_id"] = location_id
+    bookings = []
+    if BOOKINGS_ENABLED:
+        booking_query = """
+            SELECT b.id, b.start_time_utc, b.end_time_utc, b.status,
+                   s.name AS service_name,
+                   u.id AS staff_id, u.full_name AS staff_name,
+                   c.full_name AS customer_name
+            FROM bookings b
+            LEFT JOIN services s ON b.service_id = s.id
+            LEFT JOIN users u ON b.staff_id = u.id
+            LEFT JOIN customers c ON b.customer_id = c.id
+            WHERE b.start_time_utc < :end_utc AND b.end_time_utc > :start_utc
+        """
+        booking_params: Dict[str, object] = {"start_utc": start_utc, "end_utc": end_utc}
+        if staff_id:
+            booking_query += " AND b.staff_id = :staff_id"
+            booking_params["staff_id"] = staff_id
+        if location_id:
+            booking_query += " AND u.location_id = :location_id"
+            booking_params["location_id"] = location_id
 
-    bookings = db.execute(booking_query, booking_params).fetchall()
+        bookings = db.execute(booking_query, booking_params).fetchall()
 
     exception_query = """
         SELECT id, type, start_utc, end_utc, reason, staff_id
@@ -1663,7 +1671,7 @@ async def get_availability_calendar(
         staff_ids = [row[0] for row in staff_rows]
 
     utilization_by_day = []
-    if staff_ids:
+    if BOOKINGS_ENABLED and staff_ids:
         current_date = start_date
         while current_date <= end_date:
             for staff_row_id in staff_ids:
@@ -1745,28 +1753,30 @@ async def get_availability_calendar(
 
             current_date += timedelta(days=1)
 
-    conflict_query = """
-        SELECT b.id AS booking_id, e.id AS exception_id,
-               b.start_time_utc, b.end_time_utc, e.type,
-               u.id AS staff_id, u.full_name AS staff_name
-        FROM bookings b
-        JOIN staff_exceptions e ON e.staff_id = b.staff_id
-        JOIN users u ON u.id = b.staff_id
-        WHERE e.type IN ('time_off', 'blocked_time')
-          AND b.status NOT IN ('cancelled', 'no-show')
-          AND b.start_time_utc < :end_utc AND b.end_time_utc > :start_utc
-          AND e.start_utc < :end_utc AND e.end_utc > :start_utc
-          AND b.start_time_utc < e.end_utc AND b.end_time_utc > e.start_utc
-    """
-    conflict_params: Dict[str, object] = {"start_utc": start_utc, "end_utc": end_utc}
-    if staff_id:
-        conflict_query += " AND b.staff_id = :staff_id"
-        conflict_params["staff_id"] = staff_id
-    if location_id:
-        conflict_query += " AND u.location_id = :location_id"
-        conflict_params["location_id"] = location_id
+    conflicts = []
+    if BOOKINGS_ENABLED:
+        conflict_query = """
+            SELECT b.id AS booking_id, e.id AS exception_id,
+                   b.start_time_utc, b.end_time_utc, e.type,
+                   u.id AS staff_id, u.full_name AS staff_name
+            FROM bookings b
+            JOIN staff_exceptions e ON e.staff_id = b.staff_id
+            JOIN users u ON u.id = b.staff_id
+            WHERE e.type IN ('time_off', 'blocked_time')
+              AND b.status NOT IN ('cancelled', 'no-show')
+              AND b.start_time_utc < :end_utc AND b.end_time_utc > :start_utc
+              AND e.start_utc < :end_utc AND e.end_utc > :start_utc
+              AND b.start_time_utc < e.end_utc AND b.end_time_utc > e.start_utc
+        """
+        conflict_params: Dict[str, object] = {"start_utc": start_utc, "end_utc": end_utc}
+        if staff_id:
+            conflict_query += " AND b.staff_id = :staff_id"
+            conflict_params["staff_id"] = staff_id
+        if location_id:
+            conflict_query += " AND u.location_id = :location_id"
+            conflict_params["location_id"] = location_id
 
-    conflicts = db.execute(conflict_query, conflict_params).fetchall()
+        conflicts = db.execute(conflict_query, conflict_params).fetchall()
 
     items = []
     for row in bookings:
@@ -1864,17 +1874,18 @@ async def create_schedule_change_request(
         },
     )
 
-    admin_emails = db.execute(
-        "SELECT email FROM users WHERE role IN ('admin', 'superadmin') AND is_active = TRUE"
-    ).fetchall()
-    for row in admin_emails:
-        db.execute(
-            """
-            INSERT INTO notifications (id, booking_id, channel, type, recipient, status)
-            VALUES (:id, NULL, 'email', 'schedule_change', :recipient, 'pending')
-            """,
-            {"id": str(uuid.uuid4()), "recipient": row[0]},
-        )
+    if NOTIFICATIONS_ENABLED:
+        admin_emails = db.execute(
+            "SELECT email FROM users WHERE role IN ('admin', 'superadmin') AND is_active = TRUE"
+        ).fetchall()
+        for row in admin_emails:
+            db.execute(
+                """
+                INSERT INTO notifications (id, booking_id, channel, type, recipient, status)
+                VALUES (:id, NULL, 'email', 'schedule_change', :recipient, 'pending')
+                """,
+                {"id": str(uuid.uuid4()), "recipient": row[0]},
+            )
 
     log_audit(
         db,
@@ -2079,18 +2090,19 @@ async def approve_schedule_change_request(
         },
     ).fetchone()
 
-    staff_email = db.execute(
-        "SELECT email FROM users WHERE id = :id",
-        {"id": result._mapping["staff_id"]},
-    ).fetchone()
-    if staff_email:
-        db.execute(
-            """
-            INSERT INTO notifications (id, booking_id, channel, type, recipient, status)
-            VALUES (:id, NULL, 'email', 'schedule_approved', :recipient, 'pending')
-            """,
-            {"id": str(uuid.uuid4()), "recipient": staff_email[0]},
-        )
+    if NOTIFICATIONS_ENABLED:
+        staff_email = db.execute(
+            "SELECT email FROM users WHERE id = :id",
+            {"id": result._mapping["staff_id"]},
+        ).fetchone()
+        if staff_email:
+            db.execute(
+                """
+                INSERT INTO notifications (id, booking_id, channel, type, recipient, status)
+                VALUES (:id, NULL, 'email', 'schedule_approved', :recipient, 'pending')
+                """,
+                {"id": str(uuid.uuid4()), "recipient": staff_email[0]},
+            )
 
     log_audit(
         db,
@@ -2130,18 +2142,19 @@ async def reject_schedule_change_request(
     if not result:
         raise HTTPException(status_code=404, detail="Request not found or already reviewed")
 
-    staff_email = db.execute(
-        "SELECT email FROM users WHERE id = :id",
-        {"id": result._mapping["staff_id"]},
-    ).fetchone()
-    if staff_email:
-        db.execute(
-            """
-            INSERT INTO notifications (id, booking_id, channel, type, recipient, status)
-            VALUES (:id, NULL, 'email', 'schedule_rejected', :recipient, 'pending')
-            """,
-            {"id": str(uuid.uuid4()), "recipient": staff_email[0]},
-        )
+    if NOTIFICATIONS_ENABLED:
+        staff_email = db.execute(
+            "SELECT email FROM users WHERE id = :id",
+            {"id": result._mapping["staff_id"]},
+        ).fetchone()
+        if staff_email:
+            db.execute(
+                """
+                INSERT INTO notifications (id, booking_id, channel, type, recipient, status)
+                VALUES (:id, NULL, 'email', 'schedule_rejected', :recipient, 'pending')
+                """,
+                {"id": str(uuid.uuid4()), "recipient": staff_email[0]},
+            )
 
     log_audit(
         db,

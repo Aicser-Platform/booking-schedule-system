@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     ENV: str = "development"
     DEBUG: bool = False
     APP_URL: str = "http://localhost:3000"
+    FEATURE_SET: str = "core"
 
     # =========================
     # Database (REQUIRED)
@@ -68,6 +69,24 @@ class Settings(BaseSettings):
     SMTP_USE_SSL: bool = False
     SMTP_FROM_EMAIL: Optional[str] = None
     SMTP_FROM_NAME: Optional[str] = None
+
+    # =========================
+    # Image Moderation
+    # =========================
+    IMAGE_MODERATION_ENABLED: bool = False
+    IMAGE_MODERATION_PROVIDER: str = "webhook"  # webhook | google | aws | azure
+    IMAGE_MODERATION_WEBHOOK_URL: Optional[str] = None
+    IMAGE_MODERATION_TIMEOUT_SECONDS: int = 10
+    IMAGE_MODERATION_FAIL_CLOSED: bool = True
+    IMAGE_MODERATION_GOOGLE_THRESHOLD: str = "LIKELY"
+    IMAGE_MODERATION_GOOGLE_BLOCK_CATEGORIES: str = "adult,violence,racy"
+    IMAGE_MODERATION_AWS_MIN_CONFIDENCE: int = 70
+    IMAGE_MODERATION_AWS_BLOCK_LABELS: str = "Explicit Nudity,Violence,Visually Disturbing"
+    IMAGE_MODERATION_AWS_REGION: Optional[str] = None
+    IMAGE_MODERATION_AZURE_SEVERITY_THRESHOLD: int = 4
+    IMAGE_MODERATION_AZURE_CATEGORIES: str = "Sexual,Violence"
+    AZURE_CONTENT_SAFETY_ENDPOINT: Optional[str] = None
+    AZURE_CONTENT_SAFETY_KEY: Optional[str] = None
 
     # =========================
     # Reminder Jobs

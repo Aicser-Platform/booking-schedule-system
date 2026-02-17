@@ -5,6 +5,8 @@ from typing import List
 from pathlib import Path
 from app.core.database import get_db
 from app.core.auth import require_permissions
+from app.core.config import settings
+from app.core.image_moderation import moderate_image
 from app.models.schemas import (
     ServiceCreate,
     ServiceUpdate,
@@ -190,6 +192,17 @@ async def upload_service_image(
     destination = _uploads_dir / filename
 
     contents = await file.read()
+
+    allowed, reason = moderate_image(
+        content=contents,
+        filename=file.filename or "upload",
+        content_type=file.content_type or "application/octet-stream",
+    )
+    if not allowed:
+        message = "Image rejected by safety policy"
+        if reason:
+            message = f"{message}: {reason}"
+        raise HTTPException(status_code=400, detail=message)
     destination.write_bytes(contents)
 
     base_url = str(request.base_url).rstrip("/")
@@ -278,24 +291,25 @@ async def delete_service(
     db: Session = Depends(get_db),
 ):
     """Archive a service (Admin only)"""
-    upcoming = db.execute(
-        text(
-            """
-            SELECT COUNT(1)
-            FROM bookings
-            WHERE service_id = :id
-              AND start_time_utc > NOW()
-              AND status IN ('pending', 'confirmed')
-            """
-        ),
-        {"id": service_id},
-    ).scalar()
+    if settings.FEATURE_SET == "full":
+        upcoming = db.execute(
+            text(
+                """
+                SELECT COUNT(1)
+                FROM bookings
+                WHERE service_id = :id
+                  AND start_time_utc > NOW()
+                  AND status IN ('pending', 'confirmed')
+                """
+            ),
+            {"id": service_id},
+        ).scalar()
 
-    if upcoming and upcoming > 0:
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot archive service with future bookings",
-        )
+        if upcoming and upcoming > 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot archive service with future bookings",
+            )
 
     result = db.execute(
         text(

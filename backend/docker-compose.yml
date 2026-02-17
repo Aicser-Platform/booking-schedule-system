@@ -19,7 +19,8 @@ services:
     environment:
       RUN_MIGRATIONS: "true"
       RUN_SEED: "true"
-      MIGRATION_SQL_PATH: "/repo/scripts/001_create_tables.sql"
+      FEATURE_SET: "core"
+      MIGRATION_SQL_PATH: "${MIGRATION_SQL_PATH:-/repo/scripts/001_create_tables_core.sql}"
     ports:
       - "8000:8000"
     depends_on:
