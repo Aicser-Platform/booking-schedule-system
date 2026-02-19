@@ -48,6 +48,19 @@ type EnhancedServiceFormProps = {
   }>;
 };
 
+type StaffWorkBlockDraft = {
+  weekday: number;
+  start_time_local: string;
+  end_time_local: string;
+};
+
+type StaffWorkBlockExisting = {
+  id: string;
+  weekday: number;
+  start_time_local: string;
+  end_time_local: string;
+};
+
 export default function EnhancedServiceForm({
   mode,
   serviceId,
@@ -126,6 +139,20 @@ export default function EnhancedServiceForm({
     () => Array.from(new Set(selectedStaffIds)).filter(Boolean),
     [selectedStaffIds],
   );
+  const [staffScheduleTimezone, setStaffScheduleTimezone] = useState("UTC");
+  const [staffScheduleBlocks, setStaffScheduleBlocks] = useState<
+    Record<string, StaffWorkBlockDraft[]>
+  >({});
+  const [staffScheduleIds, setStaffScheduleIds] = useState<Record<string, string>>({});
+  const [existingStaffWorkBlocks, setExistingStaffWorkBlocks] = useState<
+    Record<string, StaffWorkBlockExisting[]>
+  >({});
+  const [removedWorkBlockIds, setRemovedWorkBlockIds] = useState<string[]>([]);
+  const [loadedStaffSchedules, setLoadedStaffSchedules] = useState<
+    Record<string, boolean>
+  >({});
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleLoadError, setScheduleLoadError] = useState<string | null>(null);
 
   // Update preview whenever form data changes
   useEffect(() => {
@@ -157,6 +184,93 @@ export default function EnhancedServiceForm({
       setRuleDraft((prev) => ({ ...prev, rule_type: "monthly_day" }));
     }
   }, [ruleDraft.rule_type, scheduleForm.rule_type]);
+
+  useEffect(() => {
+    if (mode !== "edit") return;
+
+    const staffIdsToLoad = uniqueStaffIds.filter(
+      (staffId) => !loadedStaffSchedules[staffId],
+    );
+    if (staffIdsToLoad.length === 0) return;
+
+    let cancelled = false;
+
+    const loadSchedules = async () => {
+      setScheduleLoading(true);
+      setScheduleLoadError(null);
+
+      const scheduleIdUpdates: Record<string, string> = {};
+      const workBlockUpdates: Record<string, StaffWorkBlockExisting[]> = {};
+
+      try {
+        for (const staffId of staffIdsToLoad) {
+          const scheduleRes = await fetch(
+            `/api/availability/weekly-schedules/${staffId}`,
+            { credentials: "include" },
+          );
+          if (!scheduleRes.ok) {
+            continue;
+          }
+
+          const schedules = (await scheduleRes.json()) as Array<{
+            id: string;
+            is_default?: boolean;
+          }>;
+          const schedule =
+            schedules.find((item) => item.is_default) || schedules[0];
+          if (!schedule?.id) continue;
+
+          scheduleIdUpdates[staffId] = schedule.id;
+
+          const blocksRes = await fetch(
+            `/api/availability/weekly-schedules/${schedule.id}/blocks`,
+            { credentials: "include" },
+          );
+          if (!blocksRes.ok) continue;
+          const blocksPayload = (await blocksRes.json()) as {
+            work_blocks?: StaffWorkBlockExisting[];
+          };
+          const blocks = Array.isArray(blocksPayload?.work_blocks)
+            ? blocksPayload.work_blocks
+            : [];
+          workBlockUpdates[staffId] = blocks;
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setScheduleLoadError(
+            err instanceof Error
+              ? err.message
+              : "Unable to load staff time blocks",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          if (Object.keys(scheduleIdUpdates).length > 0) {
+            setStaffScheduleIds((prev) => ({ ...prev, ...scheduleIdUpdates }));
+          }
+          if (Object.keys(workBlockUpdates).length > 0) {
+            setExistingStaffWorkBlocks((prev) => ({
+              ...prev,
+              ...workBlockUpdates,
+            }));
+          }
+          setLoadedStaffSchedules((prev) => {
+            const next = { ...prev };
+            staffIdsToLoad.forEach((staffId) => {
+              next[staffId] = true;
+            });
+            return next;
+          });
+          setScheduleLoading(false);
+        }
+      }
+    };
+
+    loadSchedules();
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, uniqueStaffIds, loadedStaffSchedules]);
 
   const updateField: UpdateServiceField = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -213,6 +327,70 @@ export default function EnhancedServiceForm({
     }
   };
 
+  const handleRemoveExistingBlock = (staffId: string, blockId: string) => {
+    setExistingStaffWorkBlocks((prev) => ({
+      ...prev,
+      [staffId]: (prev[staffId] || []).filter((block) => block.id !== blockId),
+    }));
+    setRemovedWorkBlockIds((prev) =>
+      prev.includes(blockId) ? prev : [...prev, blockId],
+    );
+  };
+
+  const ensureStaffScheduleId = async (staffId: string) => {
+    if (staffScheduleIds[staffId]) return staffScheduleIds[staffId];
+
+    let scheduleId: string | null = null;
+
+    const scheduleRes = await fetch(
+      `/api/availability/weekly-schedules/${staffId}`,
+      { credentials: "include" },
+    );
+    if (scheduleRes.ok) {
+      const schedules = (await scheduleRes.json()) as Array<{
+        id: string;
+        is_default?: boolean;
+      }>;
+      const schedule =
+        schedules.find((item) => item.is_default) || schedules[0];
+      scheduleId = schedule?.id ?? null;
+    }
+
+    if (!scheduleId) {
+      const createScheduleRes = await fetch(
+        "/api/availability/weekly-schedules",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            staff_id: staffId,
+            timezone: staffScheduleTimezone || "UTC",
+            is_default: true,
+          }),
+        },
+      );
+      if (!createScheduleRes.ok) {
+        const data = await createScheduleRes.json().catch(() => ({}));
+        throw new Error(
+          data?.detail ||
+            data?.message ||
+            "Failed to create staff schedule",
+        );
+      }
+      const createdSchedule = await createScheduleRes
+        .json()
+        .catch(() => ({}));
+      scheduleId = createdSchedule?.id ?? null;
+    }
+
+    if (scheduleId) {
+      setStaffScheduleIds((prev) => ({ ...prev, [staffId]: scheduleId! }));
+    }
+
+    return scheduleId;
+  };
+
   const steps = [
     {
       id: "staff",
@@ -238,12 +416,16 @@ export default function EnhancedServiceForm({
       icon: Camera,
       description: "Upload images and media",
     },
-    {
-      id: "promotion",
-      title: "Promotion",
-      icon: Settings,
-      description: "Visibility and promotional settings",
-    },
+    ...(mode === "edit"
+      ? [
+          {
+            id: "promotion",
+            title: "Promotion",
+            icon: Settings,
+            description: "Visibility and promotional settings",
+          },
+        ]
+      : []),
     ...(mode === "create"
       ? [
           {
@@ -433,6 +615,50 @@ export default function EnhancedServiceForm({
             }
           });
           await Promise.all(assignments);
+
+          const staffIdsWithBlocks = uniqueStaffIds.filter(
+            (staffId) => (staffScheduleBlocks[staffId] || []).length > 0,
+          );
+
+          for (const staffId of staffIdsWithBlocks) {
+            const blocks = (staffScheduleBlocks[staffId] || []).filter(
+              (block) =>
+                block.start_time_local &&
+                block.end_time_local &&
+                block.start_time_local < block.end_time_local,
+            );
+            if (blocks.length === 0) continue;
+
+            const scheduleId = await ensureStaffScheduleId(staffId);
+            if (!scheduleId) {
+              throw new Error("Unable to resolve staff schedule.");
+            }
+
+            for (const block of blocks) {
+              const blockRes = await fetch(
+                "/api/availability/weekly-schedules/work-blocks",
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  credentials: "include",
+                  body: JSON.stringify({
+                    schedule_id: scheduleId,
+                    weekday: block.weekday,
+                    start_time_local: block.start_time_local,
+                    end_time_local: block.end_time_local,
+                  }),
+                },
+              );
+              if (!blockRes.ok) {
+                const data = await blockRes.json().catch(() => ({}));
+                throw new Error(
+                  data?.detail ||
+                    data?.message ||
+                    "Failed to save staff time block",
+                );
+              }
+            }
+          }
         }
 
         if (mode === "edit") {
@@ -486,6 +712,69 @@ export default function EnhancedServiceForm({
           });
 
           await Promise.all([...addRequests, ...removeRequests]);
+
+          if (removedWorkBlockIds.length > 0) {
+            const uniqueRemoved = Array.from(new Set(removedWorkBlockIds));
+            const deleteRequests = uniqueRemoved.map(async (blockId) => {
+              const res = await fetch(
+                `/api/availability/weekly-schedules/work-blocks/${blockId}`,
+                { method: "DELETE", credentials: "include" },
+              );
+              if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(
+                  data?.detail ||
+                    data?.message ||
+                    "Failed to remove time block",
+                );
+              }
+            });
+            await Promise.all(deleteRequests);
+          }
+
+          const staffIdsWithBlocks = uniqueStaffIds.filter(
+            (staffId) => (staffScheduleBlocks[staffId] || []).length > 0,
+          );
+
+          for (const staffId of staffIdsWithBlocks) {
+            const blocks = (staffScheduleBlocks[staffId] || []).filter(
+              (block) =>
+                block.start_time_local &&
+                block.end_time_local &&
+                block.start_time_local < block.end_time_local,
+            );
+            if (blocks.length === 0) continue;
+
+            const scheduleId = await ensureStaffScheduleId(staffId);
+            if (!scheduleId) {
+              throw new Error("Unable to resolve staff schedule.");
+            }
+
+            for (const block of blocks) {
+              const blockRes = await fetch(
+                "/api/availability/weekly-schedules/work-blocks",
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  credentials: "include",
+                  body: JSON.stringify({
+                    schedule_id: scheduleId,
+                    weekday: block.weekday,
+                    start_time_local: block.start_time_local,
+                    end_time_local: block.end_time_local,
+                  }),
+                },
+              );
+              if (!blockRes.ok) {
+                const data = await blockRes.json().catch(() => ({}));
+                throw new Error(
+                  data?.detail ||
+                    data?.message ||
+                    "Failed to save staff time block",
+                );
+              }
+            }
+          }
         }
       }
 
@@ -564,7 +853,7 @@ export default function EnhancedServiceForm({
             uploadError={uploadError}
           />
         )}
-        {steps[currentStep]?.id === "promotion" && (
+        {steps[currentStep]?.id === "promotion" && mode === "edit" && (
           <EnhancedPromotion formData={formData} updateField={updateField} />
         )}
         {steps[currentStep]?.id === "staff" && (
@@ -572,6 +861,16 @@ export default function EnhancedServiceForm({
             staffOptions={staffOptions}
             selectedStaffIds={selectedStaffIds}
             setSelectedStaffIds={setSelectedStaffIds}
+            enableScheduleAssignment
+            scheduleMode={mode}
+            scheduleTimezone={staffScheduleTimezone}
+            setScheduleTimezone={setStaffScheduleTimezone}
+            scheduleBlocksByStaff={staffScheduleBlocks}
+            setScheduleBlocksByStaff={setStaffScheduleBlocks}
+            existingScheduleBlocksByStaff={existingStaffWorkBlocks}
+            onRemoveExistingBlock={handleRemoveExistingBlock}
+            scheduleLoading={scheduleLoading}
+            scheduleError={scheduleLoadError}
           />
         )}
         {steps[currentStep]?.id === "schedule" && (

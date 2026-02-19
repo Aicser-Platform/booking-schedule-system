@@ -1,9 +1,12 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import CustomerBookingsClient from "@/components/booking/customer-bookings-client";
 
 type MeUser = {
   id: string;
   email: string;
+  full_name?: string | null;
+  timezone?: string | null;
   role: "customer" | "staff" | "admin" | "superadmin";
 };
 
@@ -29,5 +32,5 @@ export default async function CustomerBookingsPage() {
   }
   if (me.role === "staff") redirect("/staff/dashboard");
 
-  redirect("/#services");
+  return <CustomerBookingsClient user={me} />;
 }

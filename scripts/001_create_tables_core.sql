@@ -216,6 +216,9 @@ CREATE TABLE IF NOT EXISTS public.staff_weekly_schedules (
   effective_to DATE,
   is_default BOOLEAN DEFAULT FALSE,
   location_id UUID REFERENCES public.locations(id) ON DELETE SET NULL,
+  max_slots_per_day INTEGER,
+  max_bookings_per_day INTEGER,
+  max_bookings_per_customer INTEGER,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

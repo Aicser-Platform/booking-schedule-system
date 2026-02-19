@@ -107,10 +107,17 @@ const themeStyle: CSSProperties = {
 
 export default async function BookServicePage({
   params,
+  searchParams,
 }: {
-  params: Promise<{ serviceId: string }>;
+  params: Promise<{ serviceId: string }> | { serviceId: string };
+  searchParams?: Promise<{ source?: string }> | { source?: string };
 }) {
-  const { serviceId } = await params;
+  const resolvedParams = await params;
+  const resolvedSearchParams = searchParams
+    ? await searchParams
+    : undefined;
+  const { serviceId } = resolvedParams;
+  const source = resolvedSearchParams?.source === "social" ? "social" : "web";
 
   const me = await getMe();
   if (!me) redirect(`/auth/login?redirect=/book/${serviceId}`);
@@ -173,7 +180,7 @@ export default async function BookServicePage({
               ) : null}
             </div>
 
-            <div className="flex flex-wrap gap-3 text-xs">
+              <div className="flex flex-wrap gap-3 text-xs">
               {service.category ? (
                 <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-slate-200">
                   {service.category}
@@ -188,6 +195,11 @@ export default async function BookServicePage({
               {service.deposit_amount > 0 ? (
                 <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-slate-200">
                   ${service.deposit_amount} deposit
+                </span>
+              ) : null}
+              {service.max_capacity > 1 ? (
+                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-slate-200">
+                  Group booking up to {service.max_capacity}
                 </span>
               ) : null}
             </div>
@@ -229,12 +241,17 @@ export default async function BookServicePage({
                   Secure your preferred time
                 </h2>
                 <p className="text-sm text-slate-400">
-                  Select staff, date, and time. You&apos;ll confirm details before
-                  payment.
+                  Select staff, date, and time. We&apos;ll confirm instantly and
+                  handle payment at the appointment.
                 </p>
               </div>
               <div className="mt-6">
-                <BookingForm service={service} staff={staff} customer={me} />
+                <BookingForm
+                  service={service}
+                  staff={staff}
+                  customer={me}
+                  bookingSource={source}
+                />
               </div>
             </div>
           </div>

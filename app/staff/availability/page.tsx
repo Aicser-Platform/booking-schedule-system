@@ -37,7 +37,7 @@ export default async function StaffAvailabilityPage() {
       </header>
 
       <div className="container py-8">
-        <AvailabilityManager staffId={me.id} />
+        <AvailabilityManager staffId={me.id} role={me.role} />
       </div>
     </div>
   );

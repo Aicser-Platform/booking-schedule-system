@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 import uuid
 
@@ -37,7 +38,7 @@ def create_customer(
         ).fetchone()
 
     if existing:
-        return dict(existing._mapping)
+        return jsonable_encoder(dict(existing._mapping))
 
     customer_id = str(uuid.uuid4())
     created = db.execute(
@@ -57,7 +58,7 @@ def create_customer(
         },
     ).fetchone()
     db.commit()
-    return dict(created._mapping)
+    return jsonable_encoder(dict(created._mapping))
 
 
 @router.get("/{customer_id}", response_model=CustomerResponse)
@@ -78,4 +79,4 @@ def get_customer(
         if record.user_id != current_user.get("id"):
             raise HTTPException(status_code=403, detail="Forbidden")
 
-    return dict(record._mapping)
+    return jsonable_encoder(dict(record._mapping))

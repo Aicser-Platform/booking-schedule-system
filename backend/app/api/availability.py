@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from typing import List, Optional, Dict, Tuple
 from datetime import datetime, date, time, timedelta, timezone as dt_timezone
 import calendar
@@ -16,6 +17,7 @@ from app.models.schemas import (
     AvailabilityExceptionCreate, AvailabilityExceptionResponse,
     AvailableSlot,
     StaffWeeklyScheduleCreate, StaffWeeklyScheduleResponse,
+    StaffWeeklyScheduleUpdate,
     StaffWorkBlockCreate, StaffWorkBlockResponse,
     StaffBreakBlockCreate, StaffBreakBlockResponse,
     StaffExceptionCreate, StaffExceptionResponse,
@@ -41,7 +43,13 @@ def _normalize_schedule_request_row(row) -> dict:
             row_map["payload"] = json.loads(payload_data)
         except json.JSONDecodeError:
             row_map["payload"] = {}
-    return row_map
+    return _normalize_uuid_values(row_map)
+
+def _normalize_uuid_values(row: dict) -> dict:
+    for key, value in row.items():
+        if isinstance(value, uuid.UUID):
+            row[key] = str(value)
+    return row
 
 def _ensure_staff_or_admin(current_user: dict, staff_id: str) -> None:
     if is_admin(current_user):
@@ -289,6 +297,15 @@ def _get_cached_slots(cache_key: str) -> Optional[List[dict]]:
 def _set_cached_slots(cache_key: str, data: List[dict]) -> None:
     _SLOT_CACHE[cache_key] = {"ts": now_ts(), "data": data}
 
+def _validate_uuid_param(value: Optional[str], field_name: str) -> Optional[str]:
+    if value in (None, ""):
+        return None
+    try:
+        uuid.UUID(str(value))
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail=f"Invalid {field_name}")
+    return value
+
 def _compute_slots_for_date(
     db: Session,
     service_id: str,
@@ -301,9 +318,15 @@ def _compute_slots_for_date(
     window_end: Optional[time],
     min_notice_minutes: int,
     max_booking_days: int,
+    ignore_booking_limits: bool = False,
 ) -> List[dict]:
+    try:
+        customer_tz = ZoneInfo(timezone)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid timezone")
+
     service_result = db.execute(
-        "SELECT duration_minutes, buffer_minutes FROM services WHERE id = :id",
+        "SELECT duration_minutes, buffer_minutes, max_capacity FROM services WHERE id = :id",
         {"id": service_id},
     )
     service = service_result.fetchone()
@@ -312,15 +335,17 @@ def _compute_slots_for_date(
 
     base_duration = int(service[0])
     base_buffer = int(service[1] or 0)
+    base_capacity = int(service[2] or 1)
 
     staff_query = """
         SELECT ss.staff_id, u.full_name,
-               ss.duration_override, ss.buffer_override
+               ss.duration_override, ss.buffer_override, ss.capacity_override
         FROM staff_services ss
         JOIN users u ON u.id = ss.staff_id
         WHERE ss.service_id = :service_id
           AND ss.is_bookable = TRUE
           AND ss.is_temporarily_unavailable = FALSE
+          AND ss.admin_only = FALSE
     """
     params: Dict[str, object] = {"service_id": service_id}
     if staff_id:
@@ -335,16 +360,17 @@ def _compute_slots_for_date(
     if not staff_rows:
         return []
 
-    customer_tz = ZoneInfo(timezone)
     utc = dt_timezone.utc
 
     available_slots: List[dict] = []
 
     for row in staff_rows:
         staff_id = row[0]
+        staff_id_str = str(staff_id)
         staff_name = row[1]
         duration = int(row[2] or base_duration)
         buffer_minutes = int(row[3] or base_buffer)
+        capacity = int(row[4] or base_capacity or 1)
         total_minutes = duration + buffer_minutes
 
         schedule_query = """
@@ -363,7 +389,10 @@ def _compute_slots_for_date(
         if not schedule:
             continue
 
-        schedule_tz = ZoneInfo(schedule._mapping["timezone"])
+        schedule_map = schedule._mapping
+        schedule_tz = ZoneInfo(schedule_map["timezone"])
+        max_slots_per_day = schedule_map.get("max_slots_per_day")
+        max_bookings_per_day = schedule_map.get("max_bookings_per_day")
         day_start = datetime.combine(target_date, time(0, 0), tzinfo=schedule_tz)
         day_end = day_start + timedelta(days=1)
 
@@ -428,6 +457,21 @@ def _compute_slots_for_date(
 
         day_start_utc = day_start.astimezone(utc)
         day_end_utc = day_end.astimezone(utc)
+
+        if BOOKINGS_ENABLED and max_bookings_per_day is not None and not ignore_booking_limits:
+            booking_count = db.execute(
+                """
+                SELECT COUNT(*)
+                FROM bookings
+                WHERE staff_id = :staff_id
+                  AND start_time_utc < :day_end
+                  AND end_time_utc > :day_start
+                  AND status NOT IN ('cancelled', 'no-show')
+                """,
+                {"staff_id": staff_id, "day_start": day_start_utc, "day_end": day_end_utc},
+            ).scalar()
+            if booking_count is not None and int(booking_count) >= int(max_bookings_per_day):
+                continue
 
         exceptions = db.execute(
             """
@@ -506,7 +550,7 @@ def _compute_slots_for_date(
         if BOOKINGS_ENABLED:
             bookings = db.execute(
                 """
-                SELECT start_time_utc, end_time_utc
+                SELECT service_id, start_time_utc, end_time_utc
                 FROM bookings
                 WHERE staff_id = :staff_id
                   AND start_time_utc < :day_end
@@ -515,11 +559,11 @@ def _compute_slots_for_date(
                 """,
                 {"staff_id": staff_id, "day_start": day_start_utc, "day_end": day_end_utc},
             ).fetchall()
-            booked_intervals = [(b[0], b[1]) for b in bookings]
+            booked_intervals = [(b[0], b[1], b[2]) for b in bookings]
 
         holds = db.execute(
             """
-            SELECT start_utc, end_utc
+            SELECT service_id, start_utc, end_utc
             FROM booking_holds
             WHERE staff_id = :staff_id
               AND expires_at_utc > NOW()
@@ -528,7 +572,13 @@ def _compute_slots_for_date(
             """,
             {"staff_id": staff_id, "day_start": day_start_utc, "day_end": day_end_utc},
         ).fetchall()
-        hold_intervals = [(h[0], h[1]) for h in holds]
+        hold_intervals = [(h[0], h[1], h[2]) for h in holds]
+
+        if max_slots_per_day is not None and int(max_slots_per_day) <= 0:
+            continue
+
+        slots_added = 0
+        slot_limit = int(max_slots_per_day) if max_slots_per_day is not None else None
 
         for start_dt, end_dt in intervals:
             cursor = _round_up_to_granularity(start_dt, granularity_minutes)
@@ -542,60 +592,107 @@ def _compute_slots_for_date(
                 slot_start_utc = cursor.astimezone(utc)
                 slot_end_utc = (cursor + timedelta(minutes=total_minutes)).astimezone(utc)
                 conflict = False
-                for booked_start, booked_end in booked_intervals:
+                same_count = 0
+                for booked_service_id, booked_start, booked_end in booked_intervals:
                     if slot_start_utc < booked_end and slot_end_utc > booked_start:
-                        conflict = True
-                        break
-                if not conflict:
-                    for hold_start, hold_end in hold_intervals:
-                        if slot_start_utc < hold_end and slot_end_utc > hold_start:
+                        if booked_service_id != service_id:
                             conflict = True
                             break
+                        same_count += 1
+                if not conflict:
+                    for hold_service_id, hold_start, hold_end in hold_intervals:
+                        if slot_start_utc < hold_end and slot_end_utc > hold_start:
+                            if hold_service_id != service_id:
+                                conflict = True
+                                break
+                            same_count += 1
+
+                if not conflict:
+                    if capacity <= 1:
+                        conflict = same_count > 0
+                    else:
+                        conflict = same_count >= capacity
 
                 if not conflict:
                     available_slots.append({
                         "start_time": cursor.astimezone(customer_tz),
                         "end_time": (cursor + timedelta(minutes=duration)).astimezone(customer_tz),
-                        "staff_id": staff_id,
+                        "staff_id": staff_id_str,
                         "staff_name": staff_name,
                     })
+                    slots_added += 1
+                    if slot_limit is not None and slots_added >= slot_limit:
+                        break
 
                 cursor += timedelta(minutes=granularity_minutes)
+
+            if slot_limit is not None and slots_added >= slot_limit:
+                break
 
     return available_slots
 
 def _get_schedule_owner(db: Session, schedule_id: str) -> Optional[str]:
     result = db.execute(
-        "SELECT staff_id FROM staff_weekly_schedules WHERE id = :id",
+        text("SELECT staff_id FROM staff_weekly_schedules WHERE id = :id"),
         {"id": schedule_id}
     ).fetchone()
     return result[0] if result else None
 
 def _get_block_schedule(db: Session, table: str, block_id: str) -> Optional[str]:
     result = db.execute(
-        f"SELECT schedule_id FROM {table} WHERE id = :id",
+        text(f"SELECT schedule_id FROM {table} WHERE id = :id"),
         {"id": block_id}
     ).fetchone()
     return result[0] if result else None
 
+def _validate_schedule_limits(
+    max_slots_per_day: Optional[int],
+    max_bookings_per_day: Optional[int],
+    max_bookings_per_customer: Optional[int] = None,
+) -> None:
+    if max_slots_per_day is not None and int(max_slots_per_day) < 0:
+        raise HTTPException(status_code=400, detail="Max slots per day must be >= 0")
+    if max_bookings_per_day is not None and int(max_bookings_per_day) < 0:
+        raise HTTPException(status_code=400, detail="Max bookings per day must be >= 0")
+    if max_bookings_per_customer is not None and int(max_bookings_per_customer) < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Max bookings per customer must be >= 0",
+        )
+
+def _validate_weekday_time_block(weekday: int, start_time: time, end_time: time) -> None:
+    if weekday < 0 or weekday > 6:
+        raise HTTPException(status_code=400, detail="weekday must be between 0 (Sunday) and 6 (Saturday)")
+    if start_time >= end_time:
+        raise HTTPException(status_code=400, detail="start_time_local must be before end_time_local")
+
 @router.post("/weekly-schedules", response_model=StaffWeeklyScheduleResponse)
 async def create_weekly_schedule(
     payload: StaffWeeklyScheduleCreate,
-    current_user: dict = Depends(require_roles("staff", "admin", "superadmin")),
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db)
 ):
     """Create a weekly schedule for a staff member"""
     staff_id = _resolve_staff_id(current_user, payload.staff_id)
     _ensure_staff_or_admin(current_user, staff_id)
+    _validate_schedule_limits(
+        payload.max_slots_per_day,
+        payload.max_bookings_per_day,
+        payload.max_bookings_per_customer,
+    )
     schedule_id = str(uuid.uuid4())
 
     db.execute(
-        """
-        INSERT INTO staff_weekly_schedules
-            (id, staff_id, timezone, effective_from, effective_to, is_default, location_id)
-        VALUES
-            (:id, :staff_id, :timezone, :effective_from, :effective_to, :is_default, :location_id)
-        """,
+        text(
+            """
+            INSERT INTO staff_weekly_schedules
+                (id, staff_id, timezone, effective_from, effective_to, is_default, location_id,
+                 max_slots_per_day, max_bookings_per_day, max_bookings_per_customer)
+            VALUES
+                (:id, :staff_id, :timezone, :effective_from, :effective_to, :is_default, :location_id,
+                 :max_slots_per_day, :max_bookings_per_day, :max_bookings_per_customer)
+            """
+        ),
         {
             "id": schedule_id,
             "staff_id": staff_id,
@@ -604,6 +701,9 @@ async def create_weekly_schedule(
             "effective_to": payload.effective_to,
             "is_default": payload.is_default,
             "location_id": payload.location_id,
+            "max_slots_per_day": payload.max_slots_per_day,
+            "max_bookings_per_day": payload.max_bookings_per_day,
+            "max_bookings_per_customer": payload.max_bookings_per_customer,
         },
     )
     log_audit(
@@ -617,10 +717,10 @@ async def create_weekly_schedule(
     db.commit()
 
     created = db.execute(
-        "SELECT * FROM staff_weekly_schedules WHERE id = :id",
+        text("SELECT * FROM staff_weekly_schedules WHERE id = :id"),
         {"id": schedule_id},
     ).fetchone()
-    return dict(created._mapping)
+    return _normalize_uuid_values(dict(created._mapping))
 
 @router.get("/weekly-schedules/{staff_id}", response_model=List[StaffWeeklyScheduleResponse])
 async def get_weekly_schedules(
@@ -632,19 +732,65 @@ async def get_weekly_schedules(
     staff_id = _resolve_staff_id(current_user, staff_id)
     _ensure_staff_or_admin(current_user, staff_id)
     result = db.execute(
-        """
-        SELECT * FROM staff_weekly_schedules
-        WHERE staff_id = :staff_id
-        ORDER BY is_default DESC, effective_from NULLS FIRST
-        """,
+        text(
+            """
+            SELECT * FROM staff_weekly_schedules
+            WHERE staff_id = :staff_id
+            ORDER BY is_default DESC, effective_from NULLS FIRST
+            """
+        ),
         {"staff_id": staff_id},
     )
-    return [dict(row._mapping) for row in result.fetchall()]
+    return [_normalize_uuid_values(dict(row._mapping)) for row in result.fetchall()]
+
+@router.patch("/weekly-schedules/{schedule_id}", response_model=StaffWeeklyScheduleResponse)
+async def update_weekly_schedule(
+    schedule_id: str,
+    payload: StaffWeeklyScheduleUpdate,
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
+    db: Session = Depends(get_db),
+):
+    """Update weekly schedule settings (Admin only)."""
+    existing = db.execute(
+        text("SELECT * FROM staff_weekly_schedules WHERE id = :id"),
+        {"id": schedule_id},
+    ).fetchone()
+    if not existing:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+
+    updates = payload.model_dump(exclude_unset=True)
+    if updates:
+        _validate_schedule_limits(
+            updates.get("max_slots_per_day"),
+            updates.get("max_bookings_per_day"),
+            updates.get("max_bookings_per_customer"),
+        )
+        set_clause = ", ".join([f"{key} = :{key}" for key in updates.keys()])
+        updates["id"] = schedule_id
+        db.execute(
+            text(f"UPDATE staff_weekly_schedules SET {set_clause} WHERE id = :id"),
+            updates,
+        )
+        log_audit(
+            db,
+            current_user.get("id"),
+            "update",
+            "staff_weekly_schedule",
+            schedule_id,
+            updates,
+        )
+        db.commit()
+
+    refreshed = db.execute(
+        text("SELECT * FROM staff_weekly_schedules WHERE id = :id"),
+        {"id": schedule_id},
+    ).fetchone()
+    return _normalize_uuid_values(dict(refreshed._mapping))
 
 @router.delete("/weekly-schedules/{schedule_id}")
 async def delete_weekly_schedule(
     schedule_id: str,
-    current_user: dict = Depends(require_roles("staff", "admin", "superadmin")),
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db)
 ):
     """Delete a weekly schedule"""
@@ -655,7 +801,7 @@ async def delete_weekly_schedule(
     _ensure_staff_or_admin(current_user, owner_id)
 
     result = db.execute(
-        "DELETE FROM staff_weekly_schedules WHERE id = :id",
+        text("DELETE FROM staff_weekly_schedules WHERE id = :id"),
         {"id": schedule_id},
     )
     log_audit(
@@ -676,7 +822,7 @@ async def delete_weekly_schedule(
 @router.post("/weekly-schedules/work-blocks", response_model=StaffWorkBlockResponse)
 async def create_work_block(
     payload: StaffWorkBlockCreate,
-    current_user: dict = Depends(require_roles("staff", "admin", "superadmin")),
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db)
 ):
     """Create a working block for a weekly schedule"""
@@ -685,41 +831,51 @@ async def create_work_block(
         raise HTTPException(status_code=404, detail="Schedule not found")
 
     _ensure_staff_or_admin(current_user, owner_id)
+    _validate_weekday_time_block(payload.weekday, payload.start_time_local, payload.end_time_local)
     block_id = str(uuid.uuid4())
 
-    db.execute(
-        """
-        INSERT INTO staff_work_blocks (id, schedule_id, weekday, start_time_local, end_time_local)
-        VALUES (:id, :schedule_id, :weekday, :start_time_local, :end_time_local)
-        """,
-        {
-            "id": block_id,
-            "schedule_id": payload.schedule_id,
-            "weekday": payload.weekday,
-            "start_time_local": payload.start_time_local,
-            "end_time_local": payload.end_time_local,
-        },
-    )
-    log_audit(
-        db,
-        current_user.get("id"),
-        "create",
-        "staff_work_block",
-        block_id,
-        payload.model_dump(),
-    )
-    db.commit()
+    try:
+        db.execute(
+            text(
+                """
+                INSERT INTO staff_work_blocks (id, schedule_id, weekday, start_time_local, end_time_local)
+                VALUES (:id, :schedule_id, :weekday, :start_time_local, :end_time_local)
+                """
+            ),
+            {
+                "id": block_id,
+                "schedule_id": payload.schedule_id,
+                "weekday": payload.weekday,
+                "start_time_local": payload.start_time_local,
+                "end_time_local": payload.end_time_local,
+            },
+        )
+        log_audit(
+            db,
+            current_user.get("id"),
+            "create",
+            "staff_work_block",
+            block_id,
+            payload.model_dump(),
+        )
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to create work block. Check schedule_id and weekday/time constraints.",
+        )
 
     created = db.execute(
-        "SELECT * FROM staff_work_blocks WHERE id = :id",
+        text("SELECT * FROM staff_work_blocks WHERE id = :id"),
         {"id": block_id},
     ).fetchone()
-    return dict(created._mapping)
+    return _normalize_uuid_values(dict(created._mapping))
 
 @router.post("/weekly-schedules/break-blocks", response_model=StaffBreakBlockResponse)
 async def create_break_block(
     payload: StaffBreakBlockCreate,
-    current_user: dict = Depends(require_roles("staff", "admin", "superadmin")),
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db)
 ):
     """Create a break block for a weekly schedule"""
@@ -728,36 +884,46 @@ async def create_break_block(
         raise HTTPException(status_code=404, detail="Schedule not found")
 
     _ensure_staff_or_admin(current_user, owner_id)
+    _validate_weekday_time_block(payload.weekday, payload.start_time_local, payload.end_time_local)
     block_id = str(uuid.uuid4())
 
-    db.execute(
-        """
-        INSERT INTO staff_break_blocks (id, schedule_id, weekday, start_time_local, end_time_local)
-        VALUES (:id, :schedule_id, :weekday, :start_time_local, :end_time_local)
-        """,
-        {
-            "id": block_id,
-            "schedule_id": payload.schedule_id,
-            "weekday": payload.weekday,
-            "start_time_local": payload.start_time_local,
-            "end_time_local": payload.end_time_local,
-        },
-    )
-    log_audit(
-        db,
-        current_user.get("id"),
-        "create",
-        "staff_break_block",
-        block_id,
-        payload.model_dump(),
-    )
-    db.commit()
+    try:
+        db.execute(
+            text(
+                """
+                INSERT INTO staff_break_blocks (id, schedule_id, weekday, start_time_local, end_time_local)
+                VALUES (:id, :schedule_id, :weekday, :start_time_local, :end_time_local)
+                """
+            ),
+            {
+                "id": block_id,
+                "schedule_id": payload.schedule_id,
+                "weekday": payload.weekday,
+                "start_time_local": payload.start_time_local,
+                "end_time_local": payload.end_time_local,
+            },
+        )
+        log_audit(
+            db,
+            current_user.get("id"),
+            "create",
+            "staff_break_block",
+            block_id,
+            payload.model_dump(),
+        )
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to create break block. Check schedule_id and weekday/time constraints.",
+        )
 
     created = db.execute(
-        "SELECT * FROM staff_break_blocks WHERE id = :id",
+        text("SELECT * FROM staff_break_blocks WHERE id = :id"),
         {"id": block_id},
     ).fetchone()
-    return dict(created._mapping)
+    return _normalize_uuid_values(dict(created._mapping))
 
 @router.get("/weekly-schedules/{schedule_id}/blocks")
 async def get_schedule_blocks(
@@ -773,32 +939,36 @@ async def get_schedule_blocks(
     _ensure_staff_or_admin(current_user, owner_id)
 
     work_blocks = db.execute(
-        """
-        SELECT * FROM staff_work_blocks
-        WHERE schedule_id = :schedule_id
-        ORDER BY weekday, start_time_local
-        """,
+        text(
+            """
+            SELECT * FROM staff_work_blocks
+            WHERE schedule_id = :schedule_id
+            ORDER BY weekday, start_time_local
+            """
+        ),
         {"schedule_id": schedule_id},
     ).fetchall()
 
     break_blocks = db.execute(
-        """
-        SELECT * FROM staff_break_blocks
-        WHERE schedule_id = :schedule_id
-        ORDER BY weekday, start_time_local
-        """,
+        text(
+            """
+            SELECT * FROM staff_break_blocks
+            WHERE schedule_id = :schedule_id
+            ORDER BY weekday, start_time_local
+            """
+        ),
         {"schedule_id": schedule_id},
     ).fetchall()
 
     return {
-        "work_blocks": [dict(row._mapping) for row in work_blocks],
-        "break_blocks": [dict(row._mapping) for row in break_blocks],
+        "work_blocks": [_normalize_uuid_values(dict(row._mapping)) for row in work_blocks],
+        "break_blocks": [_normalize_uuid_values(dict(row._mapping)) for row in break_blocks],
     }
 
 @router.delete("/weekly-schedules/work-blocks/{block_id}")
 async def delete_work_block(
     block_id: str,
-    current_user: dict = Depends(require_roles("staff", "admin", "superadmin")),
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db)
 ):
     """Delete a work block"""
@@ -813,7 +983,7 @@ async def delete_work_block(
     _ensure_staff_or_admin(current_user, owner_id)
 
     result = db.execute(
-        "DELETE FROM staff_work_blocks WHERE id = :id",
+        text("DELETE FROM staff_work_blocks WHERE id = :id"),
         {"id": block_id},
     )
     log_audit(
@@ -834,7 +1004,7 @@ async def delete_work_block(
 @router.delete("/weekly-schedules/break-blocks/{block_id}")
 async def delete_break_block(
     block_id: str,
-    current_user: dict = Depends(require_roles("staff", "admin", "superadmin")),
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db)
 ):
     """Delete a break block"""
@@ -849,7 +1019,7 @@ async def delete_break_block(
     _ensure_staff_or_admin(current_user, owner_id)
 
     result = db.execute(
-        "DELETE FROM staff_break_blocks WHERE id = :id",
+        text("DELETE FROM staff_break_blocks WHERE id = :id"),
         {"id": block_id},
     )
     log_audit(
@@ -870,7 +1040,7 @@ async def delete_break_block(
 @router.post("/staff-exceptions", response_model=StaffExceptionResponse)
 async def create_staff_exception(
     payload: StaffExceptionCreate,
-    current_user: dict = Depends(require_roles("staff", "admin", "superadmin")),
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db)
 ):
     """Create a staff exception (time off, blocked, extra, override)"""
@@ -879,12 +1049,14 @@ async def create_staff_exception(
     exception_id = str(uuid.uuid4())
 
     db.execute(
-        """
-        INSERT INTO staff_exceptions
-            (id, staff_id, location_id, type, start_utc, end_utc, is_all_day, recurring_rule, reason, created_by)
-        VALUES
-            (:id, :staff_id, :location_id, :type, :start_utc, :end_utc, :is_all_day, :recurring_rule, :reason, :created_by)
-        """,
+        text(
+            """
+            INSERT INTO staff_exceptions
+                (id, staff_id, location_id, type, start_utc, end_utc, is_all_day, recurring_rule, reason, created_by)
+            VALUES
+                (:id, :staff_id, :location_id, :type, :start_utc, :end_utc, :is_all_day, :recurring_rule, :reason, :created_by)
+            """
+        ),
         {
             "id": exception_id,
             "staff_id": staff_id,
@@ -909,10 +1081,10 @@ async def create_staff_exception(
     db.commit()
 
     created = db.execute(
-        "SELECT * FROM staff_exceptions WHERE id = :id",
+        text("SELECT * FROM staff_exceptions WHERE id = :id"),
         {"id": exception_id},
     ).fetchone()
-    return dict(created._mapping)
+    return _normalize_uuid_values(dict(created._mapping))
 
 @router.post("/staff-exceptions/bulk", response_model=List[StaffExceptionResponse])
 async def create_staff_exceptions_bulk(
@@ -926,10 +1098,12 @@ async def create_staff_exceptions_bulk(
         staff_ids = payload.staff_ids
     elif payload.location_id:
         staff_rows = db.execute(
-            """
-            SELECT id FROM users
-            WHERE role = 'staff' AND location_id = :location_id
-            """,
+            text(
+                """
+                SELECT id FROM users
+                WHERE role = 'staff' AND location_id = :location_id
+                """
+            ),
             {"location_id": payload.location_id},
         ).fetchall()
         staff_ids = [row[0] for row in staff_rows]
@@ -941,12 +1115,14 @@ async def create_staff_exceptions_bulk(
     for staff_id in staff_ids:
         exception_id = str(uuid.uuid4())
         db.execute(
-            """
-            INSERT INTO staff_exceptions
-                (id, staff_id, location_id, type, start_utc, end_utc, is_all_day, recurring_rule, reason, created_by)
-            VALUES
-                (:id, :staff_id, :location_id, :type, :start_utc, :end_utc, :is_all_day, :recurring_rule, :reason, :created_by)
-            """,
+            text(
+                """
+                INSERT INTO staff_exceptions
+                    (id, staff_id, location_id, type, start_utc, end_utc, is_all_day, recurring_rule, reason, created_by)
+                VALUES
+                    (:id, :staff_id, :location_id, :type, :start_utc, :end_utc, :is_all_day, :recurring_rule, :reason, :created_by)
+                """
+            ),
             {
                 "id": exception_id,
                 "staff_id": staff_id,
@@ -973,10 +1149,10 @@ async def create_staff_exceptions_bulk(
     db.commit()
 
     results = db.execute(
-        "SELECT * FROM staff_exceptions WHERE id = ANY(:ids)",
+        text("SELECT * FROM staff_exceptions WHERE id = ANY(:ids)"),
         {"ids": created_rows},
     ).fetchall()
-    return [dict(row._mapping) for row in results]
+    return [_normalize_uuid_values(dict(row._mapping)) for row in results]
 
 @router.get("/staff-exceptions/{staff_id}", response_model=List[StaffExceptionResponse])
 async def get_staff_exceptions(
@@ -1001,18 +1177,18 @@ async def get_staff_exceptions(
         params["end_utc"] = end_utc
 
     query += " ORDER BY start_utc"
-    result = db.execute(query, params)
-    return [dict(row._mapping) for row in result.fetchall()]
+    result = db.execute(text(query), params)
+    return [_normalize_uuid_values(dict(row._mapping)) for row in result.fetchall()]
 
 @router.delete("/staff-exceptions/{exception_id}")
 async def delete_staff_exception(
     exception_id: str,
-    current_user: dict = Depends(require_roles("staff", "admin", "superadmin")),
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db)
 ):
     """Delete a staff exception"""
     owner = db.execute(
-        "SELECT staff_id FROM staff_exceptions WHERE id = :id",
+        text("SELECT staff_id FROM staff_exceptions WHERE id = :id"),
         {"id": exception_id},
     ).fetchone()
 
@@ -1022,7 +1198,7 @@ async def delete_staff_exception(
     _ensure_staff_or_admin(current_user, owner[0])
 
     result = db.execute(
-        "DELETE FROM staff_exceptions WHERE id = :id",
+        text("DELETE FROM staff_exceptions WHERE id = :id"),
         {"id": exception_id},
     )
     log_audit(
@@ -1080,7 +1256,7 @@ async def create_booking_hold(
         "SELECT * FROM booking_holds WHERE id = :id",
         {"id": hold_id},
     ).fetchone()
-    return dict(created._mapping)
+    return _normalize_uuid_values(dict(created._mapping))
 
 @router.get("/holds", response_model=List[BookingHoldResponse])
 async def list_booking_holds(
@@ -1102,7 +1278,7 @@ async def list_booking_holds(
 
     query += " ORDER BY expires_at_utc"
     result = db.execute(query, params)
-    return [dict(row._mapping) for row in result.fetchall()]
+    return [_normalize_uuid_values(dict(row._mapping)) for row in result.fetchall()]
 
 @router.delete("/holds/{hold_id}")
 async def delete_booking_hold(
@@ -1144,7 +1320,7 @@ async def delete_booking_hold(
 @router.post("/rules", response_model=AvailabilityRuleResponse)
 async def create_availability_rule(
     rule: AvailabilityRuleCreate,
-    current_user: dict = Depends(require_roles("staff", "admin", "superadmin")),
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db)
 ):
     """Create availability rule for staff"""
@@ -1173,7 +1349,7 @@ async def create_availability_rule(
         "SELECT * FROM availability_rules WHERE id = :id",
         {"id": rule_id}
     )
-    return dict(result.fetchone()._mapping)
+    return _normalize_uuid_values(dict(result.fetchone()._mapping))
 
 @router.get("/rules/{staff_id}", response_model=List[AvailabilityRuleResponse])
 async def get_staff_availability_rules(
@@ -1189,12 +1365,12 @@ async def get_staff_availability_rules(
     )
     
     rules = result.fetchall()
-    return [dict(row._mapping) for row in rules]
+    return [_normalize_uuid_values(dict(row._mapping)) for row in rules]
 
 @router.delete("/rules/{rule_id}")
 async def delete_availability_rule(
     rule_id: str,
-    current_user: dict = Depends(require_roles("staff", "admin", "superadmin")),
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db),
 ):
     """Delete an availability rule"""
@@ -1222,7 +1398,7 @@ async def delete_availability_rule(
 @router.post("/exceptions", response_model=AvailabilityExceptionResponse)
 async def create_availability_exception(
     exception: AvailabilityExceptionCreate,
-    current_user: dict = Depends(require_roles("staff", "admin", "superadmin")),
+    current_user: dict = Depends(require_roles("admin", "superadmin")),
     db: Session = Depends(get_db)
 ):
     """Create availability exception (holiday, blocked time, etc.)"""
@@ -1252,7 +1428,7 @@ async def create_availability_exception(
         "SELECT * FROM availability_exceptions WHERE id = :id",
         {"id": exception_id}
     )
-    return dict(result.fetchone()._mapping)
+    return _normalize_uuid_values(dict(result.fetchone()._mapping))
 
 @router.get("/exceptions/{staff_id}", response_model=List[AvailabilityExceptionResponse])
 async def get_staff_availability_exceptions(
@@ -1278,7 +1454,7 @@ async def get_staff_availability_exceptions(
     
     result = db.execute(query, params)
     exceptions = result.fetchall()
-    return [dict(row._mapping) for row in exceptions]
+    return [_normalize_uuid_values(dict(row._mapping)) for row in exceptions]
 
 @router.get("/slots", response_model=List[AvailableSlot])
 async def get_available_slots(
@@ -1290,7 +1466,7 @@ async def get_available_slots(
     """Get available time slots for a service on a specific date"""
     # Get service details
     service_result = db.execute(
-        "SELECT duration_minutes, buffer_minutes FROM services WHERE id = :id",
+        "SELECT duration_minutes, buffer_minutes, max_capacity FROM services WHERE id = :id",
         {"id": service_id}
     )
     service = service_result.fetchone()
@@ -1300,10 +1476,18 @@ async def get_available_slots(
     
     duration = service[0]
     buffer = service[1]
+    base_capacity = int(service[2] or 1)
     total_slot_time = duration + buffer
     
     # Get staff assigned to this service
-    staff_query = "SELECT staff_id FROM staff_services WHERE service_id = :service_id"
+    staff_query = (
+        "SELECT staff_id, capacity_override "
+        "FROM staff_services "
+        "WHERE service_id = :service_id "
+        "AND is_bookable = TRUE "
+        "AND is_temporarily_unavailable = FALSE "
+        "AND admin_only = FALSE"
+    )
     params = {"service_id": service_id}
     
     if staff_id:
@@ -1311,7 +1495,11 @@ async def get_available_slots(
         params["staff_id"] = staff_id
     
     staff_result = db.execute(staff_query, params)
-    staff_ids = [row[0] for row in staff_result.fetchall()]
+    staff_rows = staff_result.fetchall()
+    staff_ids = [row[0] for row in staff_rows]
+    capacity_by_staff = {
+        row[0]: int(row[1] or base_capacity or 1) for row in staff_rows
+    }
     
     if not staff_ids:
         return []
@@ -1333,6 +1521,25 @@ async def get_available_slots(
         return []
     
     for staff_id in staff_ids:
+        staff_capacity = capacity_by_staff.get(staff_id, base_capacity)
+        schedule_limits = db.execute(
+            """
+            SELECT max_slots_per_day, max_bookings_per_day
+            FROM staff_weekly_schedules
+            WHERE staff_id = :staff_id
+              AND (effective_from IS NULL OR effective_from <= :date)
+              AND (effective_to IS NULL OR effective_to >= :date)
+            ORDER BY is_default DESC, effective_from DESC NULLS LAST
+            LIMIT 1
+            """,
+            {"staff_id": staff_id, "date": date},
+        ).fetchone()
+        max_slots_per_day = schedule_limits[0] if schedule_limits else None
+        max_bookings_per_day = schedule_limits[1] if schedule_limits else None
+
+        if max_slots_per_day is not None and int(max_slots_per_day) <= 0:
+            continue
+
         # Get availability rules for this staff on this day
         rules_result = db.execute(
             """
@@ -1372,7 +1579,7 @@ async def get_available_slots(
         if BOOKINGS_ENABLED:
             bookings_result = db.execute(
                 """
-                SELECT start_time_utc, end_time_utc
+                SELECT service_id, start_time_utc, end_time_utc
                 FROM bookings
                 WHERE staff_id = :staff_id 
                 AND DATE(start_time_utc) = :date
@@ -1380,7 +1587,13 @@ async def get_available_slots(
                 """,
                 {"staff_id": staff_id, "date": date}
             )
-            booked_times = [(row[0], row[1]) for row in bookings_result.fetchall()]
+            booked_times = [(row[0], row[1], row[2]) for row in bookings_result.fetchall()]
+
+        if max_bookings_per_day is not None and len(booked_times) >= int(max_bookings_per_day):
+            continue
+
+        slots_added = 0
+        slot_limit = int(max_slots_per_day) if max_slots_per_day is not None else None
         
         # Generate available slots
         for start_time, end_time, rule_timezone in time_ranges:
@@ -1403,21 +1616,36 @@ async def get_available_slots(
                     continue
                 
                 # Check if slot conflicts with existing bookings
-                is_available = True
-                for booked_start, booked_end in booked_times:
-                    if (slot_start_utc < booked_end and slot_end_utc > booked_start):
-                        is_available = False
-                        break
-                
-                if is_available:
+                conflict = False
+                same_count = 0
+                for booked_service_id, booked_start, booked_end in booked_times:
+                    if slot_start_utc < booked_end and slot_end_utc > booked_start:
+                        if booked_service_id != service_id:
+                            conflict = True
+                            break
+                        same_count += 1
+
+                if not conflict:
+                    if staff_capacity <= 1:
+                        conflict = same_count > 0
+                    else:
+                        conflict = same_count >= staff_capacity
+
+                if not conflict:
                     available_slots.append({
                         "start_time": current_time,
                         "end_time": slot_end,
                         "staff_id": staff_id,
                         "staff_name": None  # Can be joined from user_profiles
                     })
+                    slots_added += 1
+                    if slot_limit is not None and slots_added >= slot_limit:
+                        break
                 
                 current_time += timedelta(minutes=total_slot_time)
+
+            if slot_limit is not None and slots_added >= slot_limit:
+                break
     
     return available_slots
 
@@ -1439,6 +1667,26 @@ async def get_available_slots_v2(
     granularity = granularity_minutes or settings.SLOT_GRANULARITY_MINUTES
     if granularity not in (5, 10, 15, 30):
         raise HTTPException(status_code=400, detail="Invalid granularity")
+
+    service_id = _validate_uuid_param(service_id, "service_id") or service_id
+    staff_id = _validate_uuid_param(staff_id, "staff_id")
+    location_id = _validate_uuid_param(location_id, "location_id")
+
+    if staff_id:
+        staff_exists = db.execute(
+            text("SELECT 1 FROM users WHERE id = :id"),
+            {"id": staff_id},
+        ).fetchone()
+        if not staff_exists:
+            raise HTTPException(status_code=404, detail="Staff not found")
+
+    if location_id:
+        location_exists = db.execute(
+            text("SELECT 1 FROM locations WHERE id = :id"),
+            {"id": location_id},
+        ).fetchone()
+        if not location_exists:
+            raise HTTPException(status_code=404, detail="Location not found")
 
     cache_key = (
         f"slots-v2:{service_id}:{date}:{timezone}:{staff_id or 'any'}:"
@@ -1486,7 +1734,30 @@ async def get_next_available_day(
     if granularity not in (5, 10, 15, 30):
         raise HTTPException(status_code=400, detail="Invalid granularity")
 
-    tz = ZoneInfo(timezone)
+    service_id = _validate_uuid_param(service_id, "service_id") or service_id
+    staff_id = _validate_uuid_param(staff_id, "staff_id")
+    location_id = _validate_uuid_param(location_id, "location_id")
+
+    if staff_id:
+        staff_exists = db.execute(
+            text("SELECT 1 FROM users WHERE id = :id"),
+            {"id": staff_id},
+        ).fetchone()
+        if not staff_exists:
+            raise HTTPException(status_code=404, detail="Staff not found")
+
+    if location_id:
+        location_exists = db.execute(
+            text("SELECT 1 FROM locations WHERE id = :id"),
+            {"id": location_id},
+        ).fetchone()
+        if not location_exists:
+            raise HTTPException(status_code=404, detail="Location not found")
+
+    try:
+        tz = ZoneInfo(timezone)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid timezone")
     today = datetime.now(tz).date()
     start_date = from_date or today
     if start_date < today:
@@ -1534,6 +1805,26 @@ async def get_month_availability(
     """Return availability per day for a given month (customer booking calendar)."""
     if month < 1 or month > 12:
         raise HTTPException(status_code=400, detail="Invalid month")
+
+    service_id = _validate_uuid_param(service_id, "service_id") or service_id
+    staff_id = _validate_uuid_param(staff_id, "staff_id")
+    location_id = _validate_uuid_param(location_id, "location_id")
+
+    if staff_id:
+        staff_exists = db.execute(
+            text("SELECT 1 FROM users WHERE id = :id"),
+            {"id": staff_id},
+        ).fetchone()
+        if not staff_exists:
+            raise HTTPException(status_code=404, detail="Staff not found")
+
+    if location_id:
+        location_exists = db.execute(
+            text("SELECT 1 FROM locations WHERE id = :id"),
+            {"id": location_id},
+        ).fetchone()
+        if not location_exists:
+            raise HTTPException(status_code=404, detail="Location not found")
 
     granularity = granularity_minutes or settings.SLOT_GRANULARITY_MINUTES
     if granularity not in (5, 10, 15, 30):
@@ -1856,6 +2147,29 @@ async def create_schedule_change_request(
     """Submit a schedule change request for approval."""
     staff_id = _resolve_staff_id(current_user, payload.staff_id)
     _ensure_staff_or_admin(current_user, staff_id)
+    if not is_admin(current_user):
+        payload_data = payload.payload or {}
+        target = payload_data.get("target")
+        action = payload_data.get("action")
+        ex_type = payload_data.get("type")
+        start_utc = payload_data.get("start_utc")
+        end_utc = payload_data.get("end_utc")
+
+        if target != "exception" or action != "add":
+            raise HTTPException(
+                status_code=403,
+                detail="Staff can only request time off.",
+            )
+        if ex_type != "time_off":
+            raise HTTPException(
+                status_code=403,
+                detail="Staff can only request time off.",
+            )
+        if not start_utc or not end_utc:
+            raise HTTPException(
+                status_code=400,
+                detail="Time off requests require start and end time.",
+            )
     request_id = str(uuid.uuid4())
 
     db.execute(
@@ -2114,7 +2428,7 @@ async def approve_schedule_change_request(
     )
     db.commit()
 
-    return dict(result._mapping)
+    return _normalize_uuid_values(dict(result._mapping))
 
 @router.post("/schedule-requests/{request_id}/reject", response_model=ScheduleChangeRequestResponse)
 async def reject_schedule_change_request(
@@ -2166,4 +2480,4 @@ async def reject_schedule_change_request(
     )
     db.commit()
 
-    return dict(result._mapping)
+    return _normalize_uuid_values(dict(result._mapping))

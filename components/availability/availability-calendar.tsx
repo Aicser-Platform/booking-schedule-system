@@ -261,15 +261,7 @@ export function AvailabilityCalendar({
 
           <div className="flex flex-wrap gap-2">
             <Button asChild size="sm">
-              <Link
-                href={
-                  mode === "admin"
-                    ? "/admin/availability"
-                    : "/staff/availability"
-                }
-              >
-                Manage weekly schedule
-              </Link>
+              <Link href="/staff/availability">Manage weekly schedule</Link>
             </Button>
             {mode === "staff" && (
               <Button asChild size="sm" variant="outline">

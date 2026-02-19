@@ -17,6 +17,7 @@ export function Navbar() {
   const isAdmin = role === "admin" || role === "superadmin";
   const isCustomer = !!user && !isStaff && !isAdmin;
   const showStaffAdminButton = isStaff || isAdmin || !user;
+  const showMyBookingsLink = !isStaff && !isAdmin;
   const staffAdminLabel = isStaff
     ? "Staff Dashboard"
     : isAdmin
@@ -95,6 +96,16 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-3">
+          {showMyBookingsLink && (
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="h-10 rounded-full border-border/70 px-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground/70"
+            >
+              <Link href="/bookings">My Bookings</Link>
+            </Button>
+          )}
           {isCustomer && (
             <Button
               type="button"

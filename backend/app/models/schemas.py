@@ -224,6 +224,9 @@ class StaffWeeklyScheduleCreate(BaseModel):
     effective_to: Optional[date] = None
     is_default: bool = False
     location_id: Optional[str] = None
+    max_slots_per_day: Optional[int] = None
+    max_bookings_per_day: Optional[int] = None
+    max_bookings_per_customer: Optional[int] = None
 
 class StaffWeeklyScheduleResponse(BaseModel):
     id: str
@@ -233,7 +236,20 @@ class StaffWeeklyScheduleResponse(BaseModel):
     effective_to: Optional[date]
     is_default: bool
     location_id: Optional[str]
+    max_slots_per_day: Optional[int]
+    max_bookings_per_day: Optional[int]
+    max_bookings_per_customer: Optional[int]
     created_at: datetime
+
+class StaffWeeklyScheduleUpdate(BaseModel):
+    timezone: Optional[str] = None
+    effective_from: Optional[date] = None
+    effective_to: Optional[date] = None
+    is_default: Optional[bool] = None
+    location_id: Optional[str] = None
+    max_slots_per_day: Optional[int] = None
+    max_bookings_per_day: Optional[int] = None
+    max_bookings_per_customer: Optional[int] = None
 
 class StaffWorkBlockCreate(BaseModel):
     schedule_id: str
@@ -431,6 +447,41 @@ class BookingWithDetails(BookingResponse):
     staff_name: Optional[str] = None
     customer_name: Optional[str] = None
     service_price: Optional[Decimal] = None
+
+class BookingChangeResponse(BaseModel):
+    id: str
+    booking_id: str
+    old_start_time: Optional[datetime]
+    new_start_time: Optional[datetime]
+    change_type: str
+    changed_by: Optional[str]
+    reason: Optional[str]
+    created_at: datetime
+
+class BookingLogResponse(BaseModel):
+    id: str
+    booking_id: str
+    action: str
+    performed_by: Optional[str]
+    details: Optional[dict]
+    created_at: datetime
+
+class WaitlistCreate(BaseModel):
+    service_id: str
+    customer_id: Optional[str] = None
+    preferred_date: Optional[date] = None
+
+class WaitlistUpdate(BaseModel):
+    status: Optional[str] = None
+    preferred_date: Optional[date] = None
+
+class WaitlistResponse(BaseModel):
+    id: str
+    service_id: str
+    customer_id: str
+    preferred_date: Optional[date]
+    status: str
+    created_at: datetime
 
 # Payment Schemas
 class PaymentCreate(BaseModel):

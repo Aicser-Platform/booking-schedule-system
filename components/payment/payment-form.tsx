@@ -16,41 +16,19 @@ export function PaymentForm({ booking }: PaymentFormProps) {
   const [isProcessing, setIsProcessing] = useState(false)
   const router = useRouter()
 
-  const amount = booking.services.deposit_amount > 0 ? booking.services.deposit_amount : booking.services.price
+  const amount =
+    booking.services.deposit_amount > 0
+      ? booking.services.deposit_amount
+      : booking.services.price
 
   const handlePayment = async () => {
     setIsProcessing(true)
     try {
-      // Create payment intent
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payments/create-intent`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          booking_id: booking.id,
-          amount: amount,
-          currency: "USD",
-          provider: "aba_payway",
-        }),
-      })
-
-      const { payment_url, payment_id } = await response.json()
-
-      // Simulate payment processing (in production, would redirect to ABA Payway)
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      // Confirm payment
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payments/${payment_id}/confirm`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ transaction_status: "success" }),
-      })
-
+      await new Promise((resolve) => setTimeout(resolve, 600))
       router.push(`/booking-confirmed/${booking.id}`)
     } catch (error) {
       console.error("Payment error:", error)
-      alert("Payment failed. Please try again.")
+      alert("Unable to continue. Please try again.")
     } finally {
       setIsProcessing(false)
     }
@@ -59,8 +37,10 @@ export function PaymentForm({ booking }: PaymentFormProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Complete Payment</h1>
-        <p className="mt-2 text-muted-foreground">Secure payment processing with ABA Payway</p>
+        <h1 className="text-3xl font-bold tracking-tight">Confirm Booking</h1>
+        <p className="mt-2 text-muted-foreground">
+          Payment will be collected at your appointment.
+        </p>
       </div>
 
       <Card className="shadow-[var(--shadow-card)]">
@@ -127,10 +107,12 @@ export function PaymentForm({ booking }: PaymentFormProps) {
 
           <Button onClick={handlePayment} disabled={isProcessing} className="w-full" size="lg">
             <CreditCard className="mr-2 h-5 w-5" />
-            {isProcessing ? "Processing Payment..." : `Pay $${amount}`}
+            {isProcessing ? "Processing..." : "Confirm and Finish"}
           </Button>
 
-          <p className="text-center text-xs text-muted-foreground">Secure payment processing powered by ABA Payway</p>
+          <p className="text-center text-xs text-muted-foreground">
+            Pay in person or as directed by staff.
+          </p>
         </CardContent>
       </Card>
     </div>

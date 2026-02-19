@@ -171,6 +171,8 @@ docker compose exec backend python -m app.seed
 
 docker compose exec backend python -m app.seed_admin_user
 
+docker compose restart
+
 # Bootstrap an initial admin/superadmin (one-time):
 
 docker compose exec backend python -m app.bootstrap_admin --email you@example.com --password "ChangeMe123!" --role superadmin --full-name "Initial Admin"
@@ -188,3 +190,7 @@ npm install
 npm run build
 
 npm run dev
+
+# refresh database
+
+docker compose restart

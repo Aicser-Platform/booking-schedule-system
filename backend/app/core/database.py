@@ -1,5 +1,5 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker, Session
 from app.core.config import settings
 
 engine = create_engine(
@@ -7,10 +7,17 @@ engine = create_engine(
     pool_pre_ping=True,
 )
 
+class SafeSession(Session):
+    def execute(self, statement, params=None, *args, **kwargs):
+        if isinstance(statement, str):
+            statement = text(statement)
+        return super().execute(statement, params or {}, *args, **kwargs)
+
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
     bind=engine,
+    class_=SafeSession,
 )
 
 def get_db():

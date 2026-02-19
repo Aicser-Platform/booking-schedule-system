@@ -1,6 +1,7 @@
 from typing import Optional, Dict, Any
 import uuid
 import json
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
@@ -13,7 +14,8 @@ def log_audit(
     entity_id: Optional[str],
     changes: Optional[Dict[str, Any]] = None,
 ) -> None:
-    payload = None if changes is None else json.dumps(changes)
+    # Ensure datetimes/UUIDs/times are JSON serializable for audit payloads.
+    payload = None if changes is None else json.dumps(jsonable_encoder(changes))
     db.execute(
         text(
             """

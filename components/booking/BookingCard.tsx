@@ -10,7 +10,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-type BookingStatus = "pending" | "confirmed" | "completed" | "cancelled";
+type BookingStatus =
+  | "pending"
+  | "confirmed"
+  | "completed"
+  | "cancelled"
+  | "no-show";
 
 interface BookingCardProps {
   id: string;
@@ -44,6 +49,10 @@ const statusConfig = {
   cancelled: {
     label: "Cancelled",
     className: "bg-gray-50 text-gray-600 border-gray-200/60",
+  },
+  "no-show": {
+    label: "No Show",
+    className: "bg-rose-50 text-rose-700 border-rose-200/60",
   },
 };
 
@@ -118,14 +127,18 @@ export function BookingCard({
                     View Details
                   </DropdownMenuItem>
                 )}
-                {onEdit && status !== "cancelled" && status !== "completed" && (
+                {onEdit &&
+                  status !== "cancelled" &&
+                  status !== "completed" &&
+                  status !== "no-show" && (
                   <DropdownMenuItem onClick={onEdit}>
                     Edit Booking
                   </DropdownMenuItem>
                 )}
                 {onCancel &&
                   status !== "cancelled" &&
-                  status !== "completed" && (
+                  status !== "completed" &&
+                  status !== "no-show" && (
                     <DropdownMenuItem
                       onClick={onCancel}
                       className="text-destructive"
@@ -197,10 +210,13 @@ export function BookingCard({
               </Button>
             )}
 
-            {status === "completed" && (
+            {(status === "completed" ||
+              status === "cancelled" ||
+              status === "no-show") && onBook && (
               <Button
                 variant="outline"
                 size="lg"
+                onClick={onBook}
                 className="rounded-full border-border/60 bg-background/60 transition duration-300 hover:-translate-y-0.5 hover:bg-muted/60"
               >
                 Book Again
