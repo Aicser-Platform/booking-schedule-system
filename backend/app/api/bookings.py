@@ -21,6 +21,16 @@ import uuid
 router = APIRouter()
 
 ALLOWED_BOOKING_SOURCES = {"web", "social", "admin", "api"}
+DEFAULT_APP_TIMEZONE = "Asia/Phnom_Penh"
+
+def _resolve_customer_timezone(
+    booking_timezone: Optional[str] = None,
+    user_timezone: Optional[str] = None,
+) -> str:
+    for candidate in (user_timezone, booking_timezone):
+        if candidate and candidate != "UTC":
+            return candidate
+    return DEFAULT_APP_TIMEZONE
 
 def _send_booking_emails(db: Session, booking_id: str, notification_type: str) -> None:
     context = get_booking_email_context(db, booking_id)
@@ -807,7 +817,10 @@ async def rebook_booking(
     staff_id = booking_map["staff_id"]
     customer_id = booking_map["customer_id"]
 
-    timezone = booking_map.get("customer_timezone") or current_user.get("timezone") or "UTC"
+    timezone = _resolve_customer_timezone(
+        booking_timezone=booking_map.get("customer_timezone"),
+        user_timezone=current_user.get("timezone"),
+    )
     start_date = datetime.now(ZoneInfo(timezone)).date()
 
     candidate_slots = _iter_next_available_slots(
@@ -1119,7 +1132,10 @@ async def update_booking(
                 customer_id=booking_map["customer_id"],
                 start_time_utc=booking.start_time_utc,
                 booking_source=booking_map["booking_source"],
-                customer_timezone=booking_map.get("customer_timezone") or "UTC",
+                customer_timezone=_resolve_customer_timezone(
+                    booking_timezone=booking_map.get("customer_timezone"),
+                    user_timezone=current_user.get("timezone"),
+                ),
             ),
             schedule=schedule,
             local_date=local_date,
